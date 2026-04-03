@@ -1,0 +1,802 @@
+================================================================================
+              MODULE INDEPENDENCE ARCHITECTURE - ERP SYSTEM
+================================================================================
+
+GOAL: Build independent, loosely-coupled modules that can work standalone
+      and integrate seamlessly without modifying existing code.
+
+================================================================================
+                    TECHNOLOGY STACK (PERN)
+================================================================================
+
+FRONTEND
+────────
+• React 18               → Modern UI library with hooks and concurrent features
+• Vite                   → Fast build tool and dev server
+• Ant Design             → Enterprise-grade UI component library
+• React Query            → Server state management and data fetching
+  (TanStack Query)
+• Zustand                → Lightweight global state management
+• React Router           → Client-side routing
+• React Hook Form        → Form handling and validation
+• Axios                  → HTTP client for API calls
+
+BACKEND
+───────
+• Node.js 20+            → JavaScript runtime
+• Express.js             → Web framework for REST APIs
+• Sequelize              → ORM for PostgreSQL (auto table creation)
+• Passport.js            → Authentication middleware
+• JWT                    → Token-based authentication
+• bcrypt                 → Password hashing
+• Multer                 → File upload handling
+• PDFKit                 → PDF generation for payslips
+• ExcelJS                → Excel report generation
+• Node-cron              → Scheduled tasks (payroll, attendance)
+
+DATABASE & CACHING
+──────────────────
+• PostgreSQL 15          → Primary database (ACID compliance for payroll/finance)
+• Redis                  → Session storage and caching layer
+• Sequelize Migrations   → Database version control
+
+COMMUNICATION
+─────────────
+• Event Bus              → Inter-module communication (event-driven)
+• REST APIs              → HTTP-based communication between modules
+• Socket.io (Optional)   → Real-time notifications
+
+DEVELOPMENT TOOLS
+─────────────────
+• ESLint + Prettier      → Code quality and formatting
+• Jest + Supertest       → Backend testing
+• React Testing Library  → Frontend testing
+• Husky                  → Git hooks for pre-commit checks
+• Docker                 → Containerization for deployment
+
+WHY PERN STACK?
+───────────────
+✓ PostgreSQL provides ACID transactions (critical for payroll/finance)
+✓ Sequelize auto-creates tables like Firebase (await sequelize.sync())
+✓ Full JavaScript stack (React + Node.js)
+✓ Enterprise-grade reliability and scalability
+✓ Strong typing support with PostgreSQL
+✓ Better data integrity than NoSQL for ERP systems
+✓ Complex query support for reports and analytics
+
+================================================================================
+                    1. CORE ARCHITECTURAL PRINCIPLES
+================================================================================
+
+1.1 MODULE INDEPENDENCE
+───────────────────────
+☑ Each module has its own:
+  • Controllers, Services, Models, Routes
+  • Database tables (no cross-module table dependencies)
+  • Business logic contained within the module
+  • APIs for external communication
+
+☑ Module does NOT:
+  • Import code from other modules
+  • Directly access other module's database tables
+  • Have tight coupling with other modules
+
+
+1.2 LOOSE COUPLING
+──────────────────
+Modules communicate through:
+  ✓ REST APIs (HTTP requests)
+  ✓ Event Bus (Pub/Sub pattern)
+  ✓ Message Queues (RabbitMQ, Redis)
+  ✗ Direct function calls between modules
+  ✗ Direct database access
+
+
+1.3 SEPARATION OF CONCERNS
+───────────────────────────
+  Core Layer:      Shared utilities (auth, logging, database connection)
+  Module Layer:    Business logic specific to each module
+  Shared Layer:    Common utilities (date helpers, validators, constants)
+
+
+================================================================================
+                    2. FOLDER STRUCTURE FOR INDEPENDENCE
+================================================================================
+
+erp-system/
+│
+├── backend/
+│   └── src/
+│       ├── core/                    # Shared across ALL modules
+│       │   ├── auth/                # JWT authentication
+│       │   ├── database/            # Database connection
+│       │   ├── middlewares/         # Auth, error handling
+│       │   ├── logger/              # Logging service
+│       │   └── event-bus/           # Event emitter for modules
+│       │
+│       ├── modules/
+│       │   ├── hr/                  # INDEPENDENT HR MODULE
+│       │   │   ├── controllers/
+│       │   │   ├── models/
+│       │   │   ├── services/
+│       │   │   ├── routes/
+│       │   │   ├── events/          # HR events emitter
+│       │   │   ├── listeners/       # Listen to other module events
+│       │   │   └── index.js         # Module entry point
+│       │   │
+│       │   ├── finance/             # INDEPENDENT FINANCE MODULE
+│       │   │   ├── controllers/
+│       │   │   ├── models/
+│       │   │   ├── services/
+│       │   │   ├── routes/
+│       │   │   ├── events/
+│       │   │   ├── listeners/
+│       │   │   └── index.js
+│       │   │
+│       │   ├── inventory/           # INDEPENDENT INVENTORY MODULE
+│       │   └── sales/               # INDEPENDENT SALES MODULE
+│       │
+│       ├── shared/                  # Shared utilities (not business logic)
+│       │   ├── utils/
+│       │   ├── constants/
+│       │   └── validators/
+│       │
+│       └── app.js                   # Register all modules dynamically
+
+
+================================================================================
+                    3. COMMUNICATION PATTERNS
+================================================================================
+
+3.1 REST API COMMUNICATION (Synchronous)
+─────────────────────────────────────────
+
+When Module A needs data from Module B → Call Module B's API
+
+Example: Finance module needs employee salary data from HR
+
+Finance Module Code:
+────────────────────
+// finance/services/payroll.service.js
+const axios = require('axios');
+
+async function getEmployeeDetails(employeeId) {
+  try {
+    // Call HR module's API (not direct import)
+    const response = await axios.get(
+      `http://localhost:5000/api/hr/employees/${employeeId}`
+    );
+    return response.data;
+  } catch (error) {
+    // Handle if HR module is unavailable
+    console.error('HR module unavailable');
+    return null;
+  }
+}
+
+
+HR Module API:
+──────────────
+// hr/routes/employee.routes.js
+router.get('/employees/:id', employeeController.getById);
+
+✓ Finance doesn't import HR code directly
+✓ HR can be modified without touching Finance
+✓ Modules can be deployed separately
+
+
+3.2 EVENT-DRIVEN COMMUNICATION (Asynchronous)
+──────────────────────────────────────────────
+
+When Module A does something that other modules might care about
+→ Emit an event, other modules listen if needed
+
+Example: HR creates new employee → Finance needs to set up payroll
+
+HR Module (Event Emitter):
+───────────────────────────
+// hr/services/employee.service.js
+const eventBus = require('../../core/event-bus');
+
+async function createEmployee(employeeData) {
+  const employee = await Employee.create(employeeData);
+  
+  // Emit event (HR doesn't know/care who's listening)
+  eventBus.emit('hr:employee:created', {
+    employeeId: employee.id,
+    name: employee.name,
+    department: employee.department,
+    joinDate: employee.joinDate,
+    salary: employee.salary
+  });
+  
+  return employee;
+}
+
+
+Finance Module (Event Listener):
+─────────────────────────────────
+// finance/listeners/hr-events.listener.js
+const eventBus = require('../../core/event-bus');
+const payrollService = require('../services/payroll.service');
+
+function listenToHREvents() {
+  // Finance listens to HR events
+  eventBus.on('hr:employee:created', async (data) => {
+    console.log('New employee created, setting up payroll...');
+    await payrollService.createPayrollAccount(data);
+  });
+  
+  eventBus.on('hr:employee:terminated', async (data) => {
+    console.log('Employee terminated, closing payroll...');
+    await payrollService.closePayrollAccount(data.employeeId);
+  });
+}
+
+module.exports = { listenToHREvents };
+
+
+Module Registration:
+────────────────────
+// finance/index.js
+const { listenToHREvents } = require('./listeners/hr-events.listener');
+
+function initFinanceModule() {
+  listenToHREvents(); // Finance subscribes to HR events
+}
+
+✓ HR doesn't know Finance exists
+✓ Finance can be added/removed without changing HR
+✓ New modules can listen to same events
+
+
+3.3 SHARED EVENT BUS IMPLEMENTATION
+────────────────────────────────────
+
+// core/event-bus/index.js
+const EventEmitter = require('events');
+
+class ModuleEventBus extends EventEmitter {
+  constructor() {
+    super();
+    this.setMaxListeners(100); // Support many modules
+  }
+  
+  // Enhanced emit with error handling
+  emitAsync(eventName, data) {
+    this.emit(eventName, data);
+    console.log(`[EVENT] ${eventName}`, data);
+  }
+}
+
+module.exports = new ModuleEventBus();
+
+
+================================================================================
+                    4. DATABASE INDEPENDENCE
+================================================================================
+
+4.1 NO FOREIGN KEYS BETWEEN MODULES
+────────────────────────────────────
+
+BAD (Tight Coupling):
+─────────────────────
+// finance/models/salary.model.js
+Salary.belongsTo(Employee); // ❌ Direct FK to HR module's table
+
+
+GOOD (Loose Coupling):
+──────────────────────
+// finance/models/salary.model.js
+const Salary = sequelize.define('Salary', {
+  employeeId: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+    // NO FK constraint to employees table
+  },
+  amount: DataTypes.DECIMAL,
+  month: DataTypes.STRING
+});
+
+✓ Store employeeId as reference (no FK)
+✓ Validate via API call to HR module
+✓ If HR changes employee table, Finance is unaffected
+
+
+4.2 MODULE-SPECIFIC TABLES
+───────────────────────────
+
+HR Module Tables:
+  - employees
+  - departments
+  - attendance_logs
+  - leave_applications
+  - leave_balances
+
+Finance Module Tables:
+  - salary_structures
+  - payslips
+  - accounts
+  - journal_entries
+  - invoices
+
+Inventory Module Tables:
+  - products
+  - warehouses
+  - stock_movements
+
+✓ Each module owns its tables
+✓ No cross-module JOINs directly in queries
+
+
+4.3 DATA DUPLICATION IS OK
+───────────────────────────
+
+Instead of foreign keys, store necessary data:
+
+// finance/models/payslip.model.js
+const Payslip = sequelize.define('Payslip', {
+  employeeId: DataTypes.INTEGER,     // Reference to HR
+  employeeName: DataTypes.STRING,    // Duplicated for independence
+  department: DataTypes.STRING,      // Duplicated
+  amount: DataTypes.DECIMAL,
+  month: DataTypes.STRING
+});
+
+When creating payslip:
+  1. Call HR API to get employee details
+  2. Store relevant data in Finance table
+  3. Finance can work even if HR is temporarily down
+
+✓ Small data duplication acceptable
+✓ Better performance (no JOINs across modules)
+✓ Modules can work independently
+
+
+================================================================================
+                    5. API DESIGN FOR INDEPENDENCE
+================================================================================
+
+5.1 MODULE API STRUCTURE
+─────────────────────────
+
+Each module exposes its own API routes:
+
+/api/hr/employees
+/api/hr/attendance
+/api/hr/leaves
+/api/hr/payroll
+
+/api/finance/accounts
+/api/finance/invoices
+/api/finance/payments
+
+/api/inventory/products
+/api/inventory/stock
+
+/api/sales/orders
+/api/sales/customers
+
+
+5.2 INTERNAL vs EXTERNAL APIs
+──────────────────────────────
+
+// hr/routes/employee.routes.js
+
+// PUBLIC API (for frontend)
+router.get('/employees', authMiddleware, employeeController.list);
+
+// INTERNAL API (for other modules)
+router.get('/internal/employees/:id', 
+  internalApiMiddleware,  // Special auth for module-to-module calls
+  employeeController.getByIdInternal
+);
+
+✓ Internal APIs can return more data
+✓ Separate authentication for module communication
+✓ Can track which module is calling
+
+
+5.3 API VERSIONING
+──────────────────
+
+/api/v1/hr/employees
+/api/v2/hr/employees  (when HR changes structure)
+
+✓ Old modules use v1
+✓ New modules use v2
+✓ No breaking changes
+
+
+================================================================================
+                    6. MODULE REGISTRATION & INITIALIZATION
+================================================================================
+
+6.1 MODULE INDEX (Entry Point)
+───────────────────────────────
+
+// hr/index.js
+const employeeRoutes = require('./routes/employee.routes');
+const attendanceRoutes = require('./routes/attendance.routes');
+const { listenToFinanceEvents } = require('./listeners/finance-events.listener');
+
+function initHRModule(app) {
+  // Register routes
+  app.use('/api/hr/employees', employeeRoutes);
+  app.use('/api/hr/attendance', attendanceRoutes);
+  
+  // Start listening to other module events
+  listenToFinanceEvents();
+  
+  console.log('✓ HR Module initialized');
+}
+
+module.exports = { initHRModule };
+
+
+6.2 MAIN APP (Dynamic Module Loading)
+──────────────────────────────────────
+
+// app.js
+const express = require('express');
+const app = express();
+
+// Load modules dynamically
+const modules = [
+  { name: 'HR', init: require('./modules/hr').initHRModule },
+  { name: 'Finance', init: require('./modules/finance').initFinanceModule },
+  // { name: 'Inventory', init: require('./modules/inventory').initInventoryModule },
+  // { name: 'Sales', init: require('./modules/sales').initSalesModule }
+];
+
+modules.forEach(module => {
+  try {
+    module.init(app);
+    console.log(`✓ ${module.name} module loaded`);
+  } catch (error) {
+    console.error(`✗ ${module.name} module failed to load:`, error);
+    // App continues even if one module fails
+  }
+});
+
+✓ Add/remove modules by commenting out
+✓ Module failures don't crash entire app
+✓ Easy to enable/disable modules
+
+
+================================================================================
+                    7. EXAMPLE: HR + FINANCE INTEGRATION
+================================================================================
+
+SCENARIO: When employee joins → Create payroll account in Finance
+
+Step 1: HR Module (Create Employee)
+────────────────────────────────────
+// hr/services/employee.service.js
+const eventBus = require('../../core/event-bus');
+
+async function createEmployee(data) {
+  const employee = await Employee.create({
+    name: data.name,
+    email: data.email,
+    department: data.department,
+    salary: data.salary,
+    joinDate: data.joinDate
+  });
+  
+  // Emit event (HR doesn't care who's listening)
+  eventBus.emit('hr:employee:created', {
+    employeeId: employee.id,
+    name: employee.name,
+    email: employee.email,
+    salary: employee.salary,
+    joinDate: employee.joinDate
+  });
+  
+  return employee;
+}
+
+
+Step 2: Finance Module (Listen & React)
+────────────────────────────────────────
+// finance/listeners/hr-events.listener.js
+const eventBus = require('../../core/event-bus');
+const payrollService = require('../services/payroll.service');
+
+eventBus.on('hr:employee:created', async (employeeData) => {
+  // Finance automatically creates payroll when HR creates employee
+  await payrollService.createPayrollAccount({
+    employeeId: employeeData.employeeId,
+    employeeName: employeeData.name,  // Store copy
+    monthlySalary: employeeData.salary,
+    startDate: employeeData.joinDate
+  });
+  
+  console.log(`Payroll account created for ${employeeData.name}`);
+});
+
+
+Step 3: What Happens?
+─────────────────────
+1. Frontend calls: POST /api/hr/employees
+2. HR creates employee in database
+3. HR emits 'hr:employee:created' event
+4. Finance (if loaded) receives event
+5. Finance creates payroll account
+
+✓ HR works fine even if Finance module doesn't exist
+✓ Finance can be added later without changing HR code
+✓ No direct dependencies between modules
+
+
+================================================================================
+                    8. HANDLING MODULE UNAVAILABILITY
+================================================================================
+
+8.1 GRACEFUL DEGRADATION
+─────────────────────────
+
+// finance/services/employee-info.service.js
+const axios = require('axios');
+
+async function getEmployeeInfo(employeeId) {
+  try {
+    // Try to get from HR module
+    const response = await axios.get(
+      `http://localhost:5000/api/hr/internal/employees/${employeeId}`,
+      { timeout: 3000 }
+    );
+    return response.data;
+  } catch (error) {
+    // HR module unavailable - use cached data
+    console.warn('HR module unavailable, using cached data');
+    return await getCachedEmployeeInfo(employeeId);
+  }
+}
+
+
+8.2 RETRY MECHANISMS
+────────────────────
+
+async function callModuleAPI(url, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await axios.get(url);
+    } catch (error) {
+      if (i === retries - 1) throw error;
+      await sleep(1000 * (i + 1)); // Exponential backoff
+    }
+  }
+}
+
+
+8.3 CIRCUIT BREAKER PATTERN
+────────────────────────────
+
+// shared/utils/circuit-breaker.js
+class CircuitBreaker {
+  constructor(threshold = 5, timeout = 60000) {
+    this.failureCount = 0;
+    this.threshold = threshold;
+    this.timeout = timeout;
+    this.state = 'CLOSED'; // CLOSED, OPEN, HALF_OPEN
+  }
+  
+  async call(fn) {
+    if (this.state === 'OPEN') {
+      throw new Error('Circuit breaker is OPEN');
+    }
+    
+    try {
+      const result = await fn();
+      this.onSuccess();
+      return result;
+    } catch (error) {
+      this.onFailure();
+      throw error;
+    }
+  }
+  
+  onSuccess() {
+    this.failureCount = 0;
+    this.state = 'CLOSED';
+  }
+  
+  onFailure() {
+    this.failureCount++;
+    if (this.failureCount >= this.threshold) {
+      this.state = 'OPEN';
+      setTimeout(() => { this.state = 'HALF_OPEN'; }, this.timeout);
+    }
+  }
+}
+
+
+================================================================================
+                    9. CONFIGURATION FOR INDEPENDENCE
+================================================================================
+
+9.1 MODULE CONFIGURATION FILE
+──────────────────────────────
+
+// config/modules.config.js
+module.exports = {
+  hr: {
+    enabled: true,
+    apiPrefix: '/api/hr',
+    baseUrl: process.env.HR_MODULE_URL || 'http://localhost:5000',
+    features: {
+      attendance: true,
+      payroll: true,
+      recruitment: false  // Can disable specific features
+    }
+  },
+  
+  finance: {
+    enabled: true,
+    apiPrefix: '/api/finance',
+    baseUrl: process.env.FINANCE_MODULE_URL || 'http://localhost:5000',
+    integrations: {
+      hr: true,  // Finance integrates with HR
+      sales: true
+    }
+  },
+  
+  inventory: {
+    enabled: false,  // Not yet developed
+    apiPrefix: '/api/inventory',
+    baseUrl: process.env.INVENTORY_MODULE_URL || 'http://localhost:5000'
+  }
+};
+
+
+9.2 ENVIRONMENT-BASED MODULE LOADING
+─────────────────────────────────────
+
+// .env
+ENABLED_MODULES=hr,finance
+HR_MODULE_URL=http://localhost:5000
+FINANCE_MODULE_URL=http://localhost:5000
+
+✓ Enable/disable modules via environment variables
+✓ Modules can run on different servers (microservices)
+
+
+================================================================================
+                    10. BEST PRACTICES SUMMARY
+================================================================================
+
+DO's:
+✓ Use Event Bus for async module communication
+✓ Use REST APIs for sync module communication
+✓ Store module-specific data in module's own tables
+✓ Duplicate small amounts of data if needed for independence
+✓ Handle module unavailability gracefully
+✓ Version your APIs
+✓ Use shared utilities (auth, logging) from core layer
+
+DON'Ts:
+✗ Import code directly from other modules
+✗ Create foreign keys between module tables
+✗ Make modules dependent on each other's existence
+✗ Share business logic code between modules
+✗ Directly query other module's database tables
+
+
+================================================================================
+                    11. MIGRATION STRATEGY
+================================================================================
+
+When adding a new module (e.g., Finance after HR exists):
+
+Step 1: Develop Finance module independently
+  - Create folder structure
+  - Build models, controllers, services
+  - Test Finance features in isolation
+
+Step 2: Define integration points
+  - What HR events should Finance listen to?
+  - What HR APIs does Finance need to call?
+
+Step 3: Implement listeners in Finance
+  - Finance subscribes to HR events
+  - Finance calls HR APIs when needed
+
+Step 4: (Optional) HR publishes more events
+  - Only if Finance needs events HR doesn't emit yet
+  - HR code changes are minimal (just emit new events)
+
+Step 5: Deploy
+  - Finance module can be added without redeploying HR
+  - Enable Finance in module config
+
+
+================================================================================
+                    12. FOLDER STRUCTURE EXAMPLE
+================================================================================
+
+backend/src/
+│
+├── core/                          # Shared by all modules
+│   ├── auth/
+│   │   ├── jwt.service.js
+│   │   └── auth.middleware.js
+│   ├── database/
+│   │   └── connection.js
+│   ├── event-bus/
+│   │   └── index.js               # EventEmitter singleton
+│   └── logger/
+│       └── logger.service.js
+│
+├── modules/
+│   ├── hr/                        # INDEPENDENT MODULE
+│   │   ├── controllers/
+│   │   │   ├── employee.controller.js
+│   │   │   ├── attendance.controller.js
+│   │   │   └── leave.controller.js
+│   │   ├── models/
+│   │   │   ├── Employee.model.js
+│   │   │   ├── Attendance.model.js
+│   │   │   └── Leave.model.js
+│   │   ├── services/
+│   │   │   ├── employee.service.js
+│   │   │   ├── attendance.service.js
+│   │   │   └── leave.service.js
+│   │   ├── routes/
+│   │   │   ├── employee.routes.js
+│   │   │   ├── attendance.routes.js
+│   │   │   └── index.js
+│   │   ├── events/
+│   │   │   └── hr-events.emitter.js  # Emit HR events
+│   │   ├── listeners/
+│   │   │   └── finance-events.listener.js  # Listen to Finance
+│   │   ├── utils/
+│   │   │   └── date-calculator.js
+│   │   └── index.js               # HR module entry point
+│   │
+│   └── finance/                   # INDEPENDENT MODULE
+│       ├── controllers/
+│       │   ├── payroll.controller.js
+│       │   └── account.controller.js
+│       ├── models/
+│       │   ├── Payslip.model.js
+│       │   └── Account.model.js
+│       ├── services/
+│       │   ├── payroll.service.js
+│       │   └── account.service.js
+│       ├── routes/
+│       │   ├── payroll.routes.js
+│       │   └── index.js
+│       ├── events/
+│       │   └── finance-events.emitter.js
+│       ├── listeners/
+│       │   └── hr-events.listener.js  # Listen to HR events
+│       └── index.js               # Finance module entry point
+│
+├── shared/                        # Shared utilities (not business logic)
+│   ├── utils/
+│   │   ├── date.utils.js
+│   │   └── validation.utils.js
+│   └── constants/
+│       └── common.constants.js
+│
+├── config/
+│   ├── modules.config.js
+│   └── database.config.js
+│
+├── app.js                         # Load all modules
+└── server.js                      # Start server
+
+
+================================================================================
+                                  END
+================================================================================
+
+KEY TAKEAWAY:
+• Each module is self-contained with its own MVC structure
+• Modules communicate via Events (async) or REST APIs (sync)
+• No direct code imports between modules
+• No foreign keys between module databases
+• New modules can be added without modifying existing ones
+
+This architecture ensures true module independence!

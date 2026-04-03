@@ -1,0 +1,1045 @@
+================================================================================
+                    HR MODULE STRUCTURE - ERP SYSTEM
+================================================================================
+
+Independent, self-contained HR module following modular architecture.
+
+================================================================================
+                    TECHNOLOGY STACK (PERN)
+================================================================================
+
+FRONTEND
+────────
+• React 18               → Modern UI library with hooks and concurrent features
+• Vite                   → Fast build tool and dev server
+• Ant Design             → Enterprise-grade UI component library
+• React Query            → Server state management and data fetching
+  (TanStack Query)
+• Zustand                → Lightweight global state management
+• React Router           → Client-side routing
+• React Hook Form        → Form handling and validation
+• Axios                  → HTTP client for API calls
+
+BACKEND
+───────
+• Node.js 20+            → JavaScript runtime
+• Express.js             → Web framework for REST APIs
+• Sequelize              → ORM for PostgreSQL (auto table creation)
+• Passport.js            → Authentication middleware
+• JWT                    → Token-based authentication
+• bcrypt                 → Password hashing
+• Multer                 → File upload handling
+• PDFKit                 → PDF generation for payslips
+• ExcelJS                → Excel report generation
+• Node-cron              → Scheduled tasks (payroll, attendance)
+
+DATABASE & CACHING
+──────────────────
+• PostgreSQL 15          → Primary database (ACID compliance for payroll/finance)
+• Redis                  → Session storage and caching layer
+• Sequelize Migrations   → Database version control
+
+COMMUNICATION
+─────────────
+• Event Bus              → Inter-module communication (event-driven)
+• REST APIs              → HTTP-based communication between modules
+• Socket.io (Optional)   → Real-time notifications
+
+DEVELOPMENT TOOLS
+─────────────────
+• ESLint + Prettier      → Code quality and formatting
+• Jest + Supertest       → Backend testing
+• React Testing Library  → Frontend testing
+• Husky                  → Git hooks for pre-commit checks
+• Docker                 → Containerization for deployment
+
+WHY PERN STACK?
+───────────────
+✓ PostgreSQL provides ACID transactions (critical for payroll/finance)
+✓ Sequelize auto-creates tables like Firebase (await sequelize.sync())
+✓ Full JavaScript stack (React + Node.js)
+✓ Enterprise-grade reliability and scalability
+✓ Strong typing support with PostgreSQL
+✓ Better data integrity than NoSQL for ERP systems
+✓ Complex query support for reports and analytics
+
+================================================================================
+                    PART 1: FUNCTIONAL FEATURES
+================================================================================
+
+1. EMPLOYEE MANAGEMENT
+   • Employee Master (Name, Contact, Employment Details, Salary)
+   • Department Management (Create, Edit, Delete Departments, Assign Heads)
+   • Designation Management (Create, Edit job roles/positions)
+   • Organization Hierarchy
+   • Employee Self-Service Portal
+
+2. ATTENDANCE MANAGEMENT
+   • Daily Check-In/Out (Biometric, Manual, Mobile)
+   • Shift Management & Roster
+   • Work From Home Tracking
+   • Overtime Tracking
+   • Monthly Attendance Reports
+
+3. LEAVE MANAGEMENT
+   • Leave Types (Casual, Sick, Earned, Maternity, LOP)
+   • Leave Application & Approval Workflow
+   • Leave Balance Tracking
+   • Holiday Calendar
+
+4. PAYROLL MANAGEMENT
+   • Salary Structure (Earnings & Deductions)
+   • Monthly Payroll Processing
+   • Payslip Generation
+   • Statutory Compliance (PF, ESI, TDS)
+
+5. RECRUITMENT & ONBOARDING
+   • Job Posting & Application Tracking
+   • Interview Management
+   • Offer Letter & Acceptance
+   • Employee Onboarding Checklist
+
+6. PERFORMANCE MANAGEMENT
+   • Goal Setting (KPIs)
+   • Appraisal Cycle & Rating
+   • Performance Feedback
+
+7. TRAINING & DEVELOPMENT
+   • Training Programs & Scheduling
+   • Attendance & Assessment
+   • Certification Management
+
+8. EXPENSE MANAGEMENT
+   • Expense Claim Submission
+   • Approval Workflow
+   • Reimbursement Processing
+
+9. EXIT MANAGEMENT
+   • Resignation/Termination
+   • Exit Clearance & Asset Return
+   • Full & Final Settlement
+
+
+
+================================================================================
+                    PART 2: TECHNICAL STRUCTURE
+================================================================================
+
+BACKEND: backend/src/modules/hr/
+─────────────────────────────────
+
+hr/
+├── controllers/              # Handle HTTP requests
+│   ├── employee.controller.js
+│   ├── department.controller.js
+│   ├── attendance.controller.js
+│   ├── leave.controller.js
+│   ├── payroll.controller.js
+│   ├── recruitment.controller.js
+│   ├── performance.controller.js
+│   ├── training.controller.js
+│   ├── expense.controller.js
+│   └── exit.controller.js
+│
+├── models/                   # Database models (HR tables only)
+│   ├── Employee.model.js
+│   ├── Department.model.js
+│   ├── Attendance.model.js
+│   ├── Leave.model.js
+│   ├── LeaveBalance.model.js
+│   ├── Salary.model.js
+│   └── Candidate.model.js
+│
+├── services/                 # Business logic
+│   ├── employee.service.js
+│   ├── department.service.js
+│   ├── attendance.service.js
+│   ├── leave.service.js
+│   ├── payroll.service.js
+│   ├── recruitment.service.js
+│   ├── performance.service.js
+│   ├── training.service.js
+│   ├── expense.service.js
+│   └── exit.service.js
+│
+├── routes/                   # API endpoints
+│   ├── employee.routes.js      → /api/hr/employees
+│   ├── department.routes.js    → /api/hr/departments
+│   ├── attendance.routes.js    → /api/hr/attendance
+│   ├── leave.routes.js         → /api/hr/leaves
+│   ├── payroll.routes.js       → /api/hr/payroll
+│   ├── recruitment.routes.js   → /api/hr/recruitment
+│   ├── performance.routes.js   → /api/hr/performance
+│   ├── training.routes.js      → /api/hr/training
+│   ├── expense.routes.js       → /api/hr/expenses
+│   ├── exit.routes.js          → /api/hr/exit
+│   └── index.js
+│
+├── events/                   # Emit events for future modules
+│   └── hr-events.js
+│       • hr:employee:created
+│       • hr:employee:updated
+│       • hr:employee:terminated
+│       • hr:salary:updated
+│       • hr:leave:approved
+│
+├── listeners/                # Listen to other modules (add when needed)
+│   └── (empty for now - add listeners when other modules are developed)
+│
+├── utils/                    # Helper functions
+│   ├── date-calculator.js
+│   ├── salary-calculator.js
+│   └── validators.js
+│
+└── index.js                  # Module entry point
+
+
+FRONTEND: frontend/src/modules/hr/
+───────────────────────────────────
+
+hr/
+├── components/               # Reusable UI components
+│   ├── EmployeeCard.jsx
+│   ├── DepartmentCard.jsx
+│   ├── AttendanceCalendar.jsx
+│   ├── LeaveForm.jsx
+│   └── PayslipViewer.jsx
+│
+├── pages/                    # Main screens (28 total - OPTIMIZED!)
+│   │
+│   ├── Employee Management (4 screens - reduced from 7)
+│   │   ├── EmployeePage.jsx                    # UNIFIED: Dashboard + List + Filters
+│   │   │                                        # Tabs: Overview | All Employees | Departments | Designations
+│   │   │                                        # Dynamically fetches data based on active tab
+│   │   ├── EmployeeForm.jsx                    # Add/Edit Employee (route param: /employee/new or /employee/:id)
+│   │   ├── EmployeeProfile.jsx                 # Detailed employee view with tabs (Personal | Work | Documents)
+│   │   └── OrganizationChart.jsx               # Visual org hierarchy
+│   │
+│   ├── Attendance Management (4 screens - reduced from 7)
+│   │   ├── AttendancePage.jsx                  # UNIFIED: Dashboard + Today's + Calendar + Reports
+│   │   │                                        # Sections: Quick Stats | Mark Attendance | Calendar View | Reports
+│   │   │                                        # Dynamically shows data based on selected view
+│   │   ├── AttendanceDetailPage.jsx            # Individual employee attendance detail + regularization
+│   │   ├── ShiftManagement.jsx                 # Shift roster, assignment, swap requests
+│   │   └── OvertimeManagement.jsx              # Overtime requests, approvals, tracking
+│   │
+│   ├── Leave Management (4 screens - reduced from 7)
+│   │   ├── LeavePage.jsx                       # UNIFIED: Dashboard + Balance + History + Approvals
+│   │   │                                        # Tabs: My Leaves | Team Leaves | Calendar | Approvals
+│   │   │                                        # Dynamically fetches based on role and active tab
+│   │   ├── LeaveForm.jsx                       # Apply/Edit Leave (modal or separate page)
+│   │   ├── LeaveCalendar.jsx                   # UNIFIED: Team calendar + Holiday calendar
+│   │   │                                        # Toggle: Team Leaves | Company Holidays | Both
+│   │   └── LeaveSettings.jsx                   # Leave types, policies, accrual rules (Admin only)
+│   │
+│   ├── Payroll Management (4 screens - reduced from 8)
+│   │   ├── PayrollPage.jsx                     # UNIFIED: Dashboard + Salary Register + Reports
+│   │   │                                        # Tabs: Overview | Process Payroll | Salary Register | Reports
+│   │   │                                        # Dynamically shows current month data with filters
+│   │   ├── EmployeeSalary.jsx                  # Individual salary structure + history + payslips
+│   │   ├── PayrollProcessing.jsx               # Month-end payroll generation + approval workflow
+│   │   └── PayrollSettings.jsx                 # UNIFIED: Salary components + Statutory config + Templates
+│   │
+│   ├── Recruitment (3 screens - reduced from 5)
+│   │   ├── RecruitmentPage.jsx                 # UNIFIED: Dashboard + Job Openings + Candidates
+│   │   │                                        # Tabs: Overview | Open Positions | Candidates | Pipeline
+│   │   │                                        # Kanban view for candidate stages
+│   │   ├── CandidateProfile.jsx                # Detailed candidate view + interview history + offer
+│   │   └── OnboardingPage.jsx                  # New hire onboarding checklist + progress tracking
+│   │
+│   ├── Performance (3 screens - reduced from 6)
+│   │   ├── PerformancePage.jsx                 # UNIFIED: Dashboard + Goals + Appraisals + 360 Feedback
+│   │   │                                        # Tabs: My Performance | Team Performance | Reports
+│   │   │                                        # Shows goals, appraisals, feedback in one place
+│   │   ├── AppraisalForm.jsx                   # Create/Edit appraisal + rating + comments
+│   │   └── GoalManagement.jsx                  # Set goals, track progress, update status
+│   │
+│   ├── Training (3 screens - reduced from 6)
+│   │   ├── TrainingPage.jsx                    # UNIFIED: Dashboard + Programs + Enrollments + Calendar
+│   │   │                                        # Tabs: Available Programs | My Trainings | Calendar | Certificates
+│   │   │                                        # Dynamically shows relevant data based on role
+│   │   ├── TrainingDetail.jsx                  # Training program details + enroll + attendance + assessment
+│   │   └── CertificationPage.jsx               # Employee certifications + expiry tracking + renewals
+│   │
+│   ├── Expense (2 screens - reduced from 6)
+│   │   ├── ExpensePage.jsx                     # UNIFIED: Dashboard + Submit + Approvals + History + Reports
+│   │   │                                        # Tabs: Submit Expense | My Expenses | Approvals | Reports
+│   │   │                                        # Role-based tabs (employees see submit/history, managers see approvals)
+│   │   └── ExpenseDetail.jsx                   # Individual expense claim detail + attachments + approval workflow
+│   │
+│   └── Exit (1 screen - reduced from 6)
+│       └── ExitManagementPage.jsx              # UNIFIED: All exit processes in one page
+│                                                # Tabs: Resignations | Approvals | Clearance | F&F | Exit Interviews
+│                                                # Role-based view (employee sees own, HR sees all)
+│                                                # Modal forms for resignation, clearance steps, settlement
+│
+├── services/                 # API calls
+│   └── hr-api.service.js
+│       • getEmployees(), createEmployee(), updateEmployee(), deleteEmployee()
+│       • getDepartments(), createDepartment(), updateDepartment(), deleteDepartment()
+│       • getDesignations(), createDesignation(), updateDesignation(), deleteDesignation()
+│       • getAttendance(), markAttendance(), getAttendanceReport()
+│       • applyLeave(), approveLeave(), rejectLeave(), getLeaveBalance()
+│       • getPayslips(), generatePayroll(), processPayroll()
+│
+└── hooks/                    # Custom React hooks
+    ├── useEmployees.js
+    ├── useDepartments.js
+    ├── useAttendance.js
+    └── useLeave.js
+
+
+DATABASE TABLES (HR owns these)
+────────────────────────────────
+• employees
+• departments
+• designations
+• attendance_logs
+• shifts
+• shift_assignments
+• overtime_requests
+• attendance_regularizations
+• leave_types
+• leave_applications
+• leave_balances
+• holidays
+• salary_structures
+• payslips
+• candidates
+• job_openings
+• interviews
+• offers
+• performance_goals
+• performance_reviews
+• appraisals
+• training_programs
+• training_enrollments
+• certifications
+• expense_claims
+• exit_records
+• exit_clearances
+
+
+================================================================================
+                    PART 3: MODULE INDEPENDENCE
+================================================================================
+
+HOW HR STAYS INDEPENDENT
+────────────────────────
+
+1. NO IMPORTS FROM OTHER MODULES
+   ✗ Don't: const finance = require('../finance/services/...')
+   ✓ Do: Use Event Bus or REST API calls
+
+2. NO DATABASE FOREIGN KEYS TO OTHER MODULES
+   ✗ Don't: Employee.belongsTo(FinanceAccount)
+   ✓ Do: Store financeAccountId as simple integer
+
+3. EMIT EVENTS (Other modules can listen)
+   When something important happens in HR:
+   
+   // hr/services/employee.service.js
+   const eventBus = require('../../core/event-bus');
+   
+   async function createEmployee(data) {
+     const employee = await Employee.create(data);
+     
+     // Emit event - HR doesn't care who listens
+     eventBus.emit('hr:employee:created', {
+       employeeId: employee.id,
+       name: employee.name,
+       department: employee.department,
+       salary: employee.salary
+     });
+     
+     return employee;
+   }
+
+4. LISTEN TO EVENTS (When other modules are developed later)
+   Currently not needed - HR works standalone.
+   Add listeners when Finance/Inventory/Sales modules are built:
+   
+   // hr/listeners/finance-events.listener.js (create in future)
+   const eventBus = require('../../core/event-bus');
+   
+   eventBus.on('finance:salary:disbursed', (data) => {
+     console.log('Salary paid for employee:', data.employeeId);
+     // Update payment status in HR if needed
+   });
+   
+   Note: This listener will be added only when Finance module exists.
+
+
+COMMUNICATION WITH OTHER MODULES (Future)
+─────────────────────────────────────────
+
+Currently, HR works standalone. When other modules are developed:
+
+Example 1: Finance needs employee data
+  Finance calls → GET /api/hr/employees/:id
+  (Finance doesn't import HR code, just calls API)
+
+Example 2: HR creates employee → Finance creates payroll (Future)
+  1. HR creates employee
+  2. HR emits 'hr:employee:created' event
+  3. Finance (when built) listens to event
+  4. Finance automatically creates payroll account
+  5. No HR code changes needed!
+
+
+API ENDPOINTS
+─────────────
+
+PUBLIC APIs (for Frontend):
+  GET    /api/hr/employees
+  POST   /api/hr/employees
+  GET    /api/hr/employees/:id
+  PUT    /api/hr/employees/:id
+  DELETE /api/hr/employees/:id
+  
+  GET    /api/hr/attendance
+  POST   /api/hr/attendance/checkin
+  POST   /api/hr/attendance/checkout
+  
+  GET    /api/hr/leaves
+  POST   /api/hr/leaves
+  PUT    /api/hr/leaves/:id/approve
+  
+  GET    /api/hr/payroll/payslips
+  POST   /api/hr/payroll/generate
+
+INTERNAL APIs (for Other Modules):
+  GET    /api/hr/internal/employees/:id
+  GET    /api/hr/internal/salary/:employeeId
+
+
+EVENTS HR EMITS
+───────────────
+• hr:employee:created        → When new employee joins
+• hr:employee:updated        → When employee data changes
+• hr:employee:terminated     → When employee leaves
+• hr:salary:updated          → When salary changes
+• hr:leave:approved          → When leave is approved
+• hr:attendance:marked       → When attendance logged
+
+
+EVENTS HR LISTENS TO (Future Integration)
+──────────────────────────────────────────
+No listeners needed initially. Add when other modules are developed:
+• finance:advance:approved   → When Finance module is built
+• finance:loan:approved      → When Finance module is built  
+• inventory:asset:allocated  → When Inventory module is built
+• sales:commission:calculated → When Sales module is built
+
+
+================================================================================
+                    PART 4: IMPLEMENTATION PHASES (OPTIMIZED)
+================================================================================
+
+OPTIMIZATION STRATEGY:
+─────────────────────
+Instead of creating separate screens for Dashboard, List, Reports, etc., we create 
+UNIFIED pages that dynamically fetch and display data based on:
+• Active Tab/Section
+• User Role (Employee/Manager/HR Admin)
+• Selected Filters (Date, Department, Status)
+• URL Query Parameters
+
+This reduces code duplication, improves maintainability, and provides better UX.
+
+
+PHASE 1 (Start Here - Core MVP) - 6 Screens
+────────────────────────────────────────────
+Build these foundational unified screens:
+
+✓ EmployeePage.jsx (1 screen replaces 3)
+   - Tabs: Overview Dashboard | Employee List | Departments | Designations
+   - Dynamic data fetch based on active tab
+   - Inline add/edit with modal forms
+   
+✓ EmployeeForm.jsx (1 screen)
+   - Add/Edit employee (determined by route param)
+   - Reusable form component
+
+✓ EmployeeProfile.jsx (1 screen)
+   - Detailed view with nested tabs
+   
+✓ AttendancePage.jsx (1 screen replaces 4)
+   - Sections: Dashboard | Mark Attendance | Calendar | Reports
+   - Real-time data updates
+   - Role-based view (employee sees own, manager sees team)
+   
+✓ LeavePage.jsx (1 screen replaces 5)
+   - Tabs: My Leaves | Team Leaves | Approvals | Calendar
+   - Inline apply leave with modal
+   - Dynamic approval section for managers
+   
+✓ LeaveForm.jsx (1 screen)
+   - Apply/Edit leave modal or separate page
+
+Backend Requirements:
+• Employee CRUD APIs with query params (type, departmentId, status)
+• Attendance APIs (mark, get with filters, reports)
+• Leave APIs (apply, approve, get balance, history)
+• Dashboard stats APIs (summary data for each module)
+• Basic authentication & authorization
+• Role-based data filtering
+
+Frontend Architecture:
+• Tab-based navigation within pages
+• Dynamic data fetching with React Query/SWR
+• Reusable table component with filters
+• Modal/Drawer components for forms
+• Role-based conditional rendering
+
+
+PHASE 2 (Add Payroll & Advanced Attendance) - 6 Screens
+─────────────────────────────────────────────────────────
+✓ PayrollPage.jsx (1 screen replaces 4)
+   - Tabs: Overview | Process Payroll | Salary Register | Reports
+   - Month selector with dynamic data
+   - Bulk actions for payroll processing
+   
+✓ EmployeeSalary.jsx (1 screen)
+   - Individual salary structure + history + payslips viewer
+   - Timeline view of salary changes
+   
+✓ PayrollProcessing.jsx (1 screen)
+   - Month-end workflow with approval steps
+   
+✓ PayrollSettings.jsx (1 screen)
+   - Salary components, statutory settings, templates
+   
+✓ ShiftManagement.jsx (1 screen)
+   - Shift roster, assignments, swap requests
+   
+✓ OvertimeManagement.jsx (1 screen)
+   - Overtime requests, approvals, tracking
+
+Backend Requirements:
+• Payroll calculation logic with dynamic salary components
+• Tax calculation engine
+• PDF generation for payslips
+• Bulk payroll processing APIs
+• Shift management APIs
+• Overtime calculation logic
+
+Frontend Components:
+• PDF viewer component
+• Advanced table with export (Excel, PDF)
+• Calendar/Scheduler component for shifts
+• Multi-step form for payroll processing
+• Charts for payroll analytics
+
+
+PHASE 3 (Advanced Features) - Remaining 16 Screens
+───────────────────────────────────────────────────
+Recruitment (3 screens):
+✓ RecruitmentPage.jsx (unified dashboard + jobs + candidates)
+✓ CandidateProfile.jsx (detail view with interview history)
+✓ OnboardingPage.jsx (checklist + progress tracking)
+
+Performance (3 screens):
+✓ PerformancePage.jsx (unified goals + appraisals + feedback)
+✓ AppraisalForm.jsx (rating + comments)
+✓ GoalManagement.jsx (set goals + track progress)
+
+Training (3 screens):
+✓ TrainingPage.jsx (unified programs + enrollments + calendar)
+✓ TrainingDetail.jsx (program details + enroll + assess)
+✓ CertificationPage.jsx (certifications + renewals)
+
+Expense (2 screens):
+✓ ExpensePage.jsx (unified submit + approvals + history + reports)
+✓ ExpenseDetail.jsx (claim details + attachments + workflow)
+
+Exit (1 screen):
+✓ ExitManagementPage.jsx (unified resignations + clearance + F&F + interviews)
+
+Supporting Screens (4 screens):
+✓ OrganizationChart.jsx (visual hierarchy)
+✓ AttendanceDetailPage.jsx (individual employee detail)
+✓ LeaveCalendar.jsx (team + holiday calendar)
+✓ LeaveSettings.jsx (types + policies + accrual)
+
+Backend Requirements:
+• Recruitment pipeline APIs (stages, status updates)
+• Performance review APIs with rating logic
+• Training management APIs
+• Expense approval workflow APIs
+• Exit process APIs with clearance steps
+• Advanced reporting APIs for all modules
+
+Frontend Components:
+• Kanban board for recruitment pipeline
+• Rating/Review components
+• File upload with preview
+• Timeline component for history
+• Advanced charts and analytics
+• Workflow visualization
+
+
+IMPLEMENTATION TIMELINE ESTIMATE (OPTIMIZED)
+─────────────────────────────────────────────
+Phase 1: 3-4 weeks (MVP with unified pages - faster than before!)
+Phase 2: 2-3 weeks (Payroll + Advanced Attendance)
+Phase 3: 6-8 weeks (All advanced features with unified approach)
+
+Total: 11-15 weeks (2.5 to 3.5 months)
+
+SAVINGS: 3-6 weeks saved due to unified page approach!
+
+
+KEY OPTIMIZATION BENEFITS:
+──────────────────────────
+✓ 52% reduction in screens (58 → 28)
+✓ Less code duplication
+✓ Easier maintenance
+✓ Better user experience (less navigation)
+✓ Faster development time
+✓ Consistent UI patterns
+✓ Single source of truth for each module
+✓ Better state management
+✓ Reduced bundle size
+
+
+================================================================================
+                    PART 5: SAMPLE DATABASE MODELS
+================================================================================
+
+Showing 4 representative models. Full database has 27 tables (see Part 2).
+
+EMPLOYEE MODEL
+──────────────
+{
+  id: INTEGER (Primary Key),
+  employeeCode: STRING (Unique),
+  firstName: STRING,
+  lastName: STRING,
+  email: STRING,
+  phone: STRING,
+  dateOfBirth: DATE,
+  dateOfJoining: DATE,
+  departmentId: INTEGER,
+  designationId: INTEGER,
+  managerId: INTEGER (Self-reference),
+  status: ENUM ('active', 'on_leave', 'terminated'),
+  baseSalary: DECIMAL
+}
+
+ATTENDANCE MODEL
+────────────────
+{
+  id: INTEGER,
+  employeeId: INTEGER,
+  date: DATE,
+  checkIn: TIME,
+  checkOut: TIME,
+  workHours: DECIMAL,
+  status: ENUM ('present', 'absent', 'half_day', 'late')
+}
+
+LEAVE MODEL
+───────────
+{
+  id: INTEGER,
+  employeeId: INTEGER,
+  leaveType: STRING ('casual', 'sick', 'earned'),
+  startDate: DATE,
+  endDate: DATE,
+  days: DECIMAL,
+  reason: TEXT,
+  status: ENUM ('pending', 'approved', 'rejected'),
+  approvedBy: INTEGER
+}
+
+SALARY MODEL
+────────────
+{
+  id: INTEGER,
+  employeeId: INTEGER,
+  basicSalary: DECIMAL,
+  hra: DECIMAL,
+  allowances: DECIMAL,
+  deductions: DECIMAL,
+  netSalary: DECIMAL,
+  effectiveDate: DATE
+}
+
+
+================================================================================
+                    PART 6: QUICK START CHECKLIST
+================================================================================
+
+Step 1: Setup Core Infrastructure
+  □ Setup database connection (PostgreSQL)
+  □ Create Event Bus (core/event-bus/index.js)
+  □ Setup JWT authentication (core/auth/)
+  □ Setup logging (core/logger/)
+
+Step 2: Create HR Module Structure
+  □ Create folders: controllers, models, services, routes, events
+  □ Create listeners folder (empty for now - for future module integration)
+  □ Create index.js for module initialization
+
+Step 3: Build Phase 1 Features
+  □ Employee Model + CRUD
+  □ Attendance Model + Check-in/out
+  □ Leave Model + Application flow
+  □ Basic API endpoints
+
+Step 4: Connect Frontend
+  □ Create HR components
+  □ Create HR pages
+  □ Build API service layer
+  □ Implement UI screens
+
+Step 5: Add Event Emitters (for future integration)
+  □ Emit events when employee created/updated
+  □ Event bus setup in core layer
+  □ No listeners needed yet (add when other modules are built)
+
+Step 6: Test HR Module Independently
+  □ HR module works without any other modules
+  □ All APIs functional
+  □ Events emitting correctly
+
+
+================================================================================
+                    PART 7: USER ROLES & SCREEN ACCESS (OPTIMIZED)
+================================================================================
+
+ROLE-BASED ACCESS CONTROL WITH UNIFIED PAGES
+─────────────────────────────────────────────
+
+With optimized unified pages, access control is now TAB/SECTION based rather than 
+page-based. Each role sees different tabs and features within the same page.
+
+
+1. EMPLOYEE (Self-Service)
+   Access Features (7 main pages with specific tabs):
+   
+   ✓ EmployeeProfile.jsx → View/Edit own profile only
+   ✓ AttendancePage.jsx → Tabs: Mark Attendance | My Attendance | Calendar
+   ✓ LeavePage.jsx → Tabs: Apply Leave | My Leaves | Leave Balance | Calendar
+   ✓ PayrollPage.jsx → Tabs: My Payslips | Salary History (limited view)
+   ✓ ExpensePage.jsx → Tabs: Submit Expense | My Expenses | History
+   ✓ TrainingPage.jsx → Tabs: Available Programs | My Trainings | Certificates
+   ✓ PerformancePage.jsx → Tabs: My Goals | My Appraisals | Feedback
+
+2. MANAGER
+   Access to all Employee features + Additional Tabs:
+   
+   ✓ EmployeePage.jsx → Tabs: Team Overview | Team Members | Reports
+   ✓ AttendancePage.jsx → Tabs: Team Attendance | Approvals | Reports | Mark (for team)
+   ✓ LeavePage.jsx → Tabs: Team Leaves | Approvals | Team Calendar (see additional approval tab)
+   ✓ PayrollPage.jsx → Tabs: Team Salary Summary | Reports (limited)
+   ✓ ExpensePage.jsx → Tabs: Approve Expenses | Team History | Reports
+   ✓ PerformancePage.jsx → Tabs: Team Performance | Set Goals | Appraisals | Reviews
+   ✓ RecruitmentPage.jsx → Tabs: Active Jobs | Candidates | Interviews (participate)
+   ✓ ExitManagementPage.jsx → Tabs: Team Resignations | Approvals | Exit Interviews
+
+3. HR ADMIN
+   Access to ALL 28 pages with FULL TABS:
+   
+   ✓ EmployeePage.jsx → Full access: Overview | All Employees | Departments | Designations
+   ✓ EmployeeForm.jsx → Add/Edit any employee
+   ✓ EmployeeProfile.jsx → View/Edit any employee profile
+   ✓ OrganizationChart.jsx → Full company hierarchy
+   ✓ AttendancePage.jsx → All tabs: Dashboard | All Attendance | Calendar | Reports | Settings
+   ✓ AttendanceDetailPage.jsx → Individual employee attendance details
+   ✓ ShiftManagement.jsx → Full control
+   ✓ OvertimeManagement.jsx → Full control
+   ✓ LeavePage.jsx → All tabs: Dashboard | All Leaves | Approvals | Calendar | Reports
+   ✓ LeaveForm.jsx → Apply on behalf of employees
+   ✓ LeaveCalendar.jsx → Full company calendar
+   ✓ LeaveSettings.jsx → Configure policies
+   ✓ PayrollPage.jsx → All tabs: Dashboard | Process | Register | Reports
+   ✓ EmployeeSalary.jsx → View/Edit any employee salary
+   ✓ PayrollProcessing.jsx → Full payroll processing rights
+   ✓ PayrollSettings.jsx → Configure salary components
+   ✓ RecruitmentPage.jsx → Full recruitment management
+   ✓ CandidateProfile.jsx → Manage candidates
+   ✓ OnboardingPage.jsx → Manage onboarding
+   ✓ PerformancePage.jsx → Company-wide performance
+   ✓ AppraisalForm.jsx → Conduct appraisals
+   ✓ GoalManagement.jsx → Set organizational goals
+   ✓ TrainingPage.jsx → Manage all training programs
+   ✓ TrainingDetail.jsx → Configure training details
+   ✓ CertificationPage.jsx → Manage certifications
+   ✓ ExpensePage.jsx → All expense management
+   ✓ ExpenseDetail.jsx → Process all expense claims
+   ✓ ExitManagementPage.jsx → Manage all exit processes
+
+4. HR MANAGER
+   Same as HR Admin + Additional Capabilities:
+   ✓ Final approval privileges on all workflows
+   ✓ Strategic dashboard views with KPIs
+   ✓ Policy configuration access
+   ✓ Advanced analytics and insights
+   ✓ Budget management for payroll
+
+5. SUPER ADMIN
+   Access to everything + System Management:
+   ✓ All HR pages with full access
+   ✓ User Management across all modules
+   ✓ Role & Permission configuration
+   ✓ System audit logs
+   ✓ Module configuration and settings
+
+
+UNIFIED PAGE ACCESS MATRIX (TAB-BASED)
+───────────────────────────────────────
+
+Page Name            Employee  Manager  HR Admin  HR Manager  Super Admin
+─────────────────────────────────────────────────────────────────────────
+EmployeePage              ✓        ✓✓       ✓✓✓       ✓✓✓         ✓✓✓
+AttendancePage            ✓✓       ✓✓✓      ✓✓✓       ✓✓✓         ✓✓✓
+LeavePage                 ✓✓       ✓✓✓      ✓✓✓       ✓✓✓         ✓✓✓
+PayrollPage               ✓        ✓        ✓✓✓       ✓✓✓         ✓✓✓
+RecruitmentPage           ✗        ✓        ✓✓✓       ✓✓✓         ✓✓✓
+PerformancePage           ✓✓       ✓✓✓      ✓✓✓       ✓✓✓         ✓✓✓
+TrainingPage              ✓✓       ✓✓       ✓✓✓       ✓✓✓         ✓✓✓
+ExpensePage               ✓✓       ✓✓✓      ✓✓✓       ✓✓✓         ✓✓✓
+ExitManagementPage        ✓        ✓✓       ✓✓✓       ✓✓✓         ✓✓✓
+Settings Pages            ✗        ✗        ✓✓✓       ✓✓✓         ✓✓✓
+
+Legend: 
+✓✓✓ = Full Access (All Tabs)
+✓✓ = Extended Access (Own + Team Tabs)
+✓ = Limited Access (Self-Service Tabs Only)
+✗ = No Access
+
+
+HOW TAB-BASED ACCESS WORKS:
+────────────────────────────
+
+Example: AttendancePage.jsx
+
+EMPLOYEE sees:
+- Mark Attendance tab
+- My Attendance tab
+- My Calendar tab
+
+MANAGER sees:
+- Mark Attendance tab
+- My Attendance tab
+- My Calendar tab
+- Team Attendance tab (NEW)
+- Team Approvals tab (NEW)
+
+HR ADMIN sees:
+- Dashboard tab (Company-wide stats)
+- All Attendance tab (Everyone's attendance)
+- Mark Attendance tab
+- Calendar tab (Company calendar)
+- Reports tab
+- Settings tab
+
+
+IMPLEMENTATION:
+───────────────
+// AttendancePage.jsx
+const AttendancePage = () => {
+  const { user } = useAuth();
+  
+  return (
+    <Tabs>
+      {user.role === 'hr_admin' && <Tab name="dashboard" />}
+      <Tab name="mark-attendance" />
+      <Tab name="my-attendance" />
+      {['manager', 'hr_admin'].includes(user.role) && <Tab name="team-attendance" />}
+      {['manager', 'hr_admin'].includes(user.role) && <Tab name="approvals" />}
+      {user.role === 'hr_admin' && <Tab name="reports" />}
+      {user.role === 'hr_admin' && <Tab name="settings" />}
+    </Tabs>
+  );
+};
+
+
+================================================================================
+                                  END
+================================================================================
+
+SUMMARY (OPTIMIZED STRUCTURE):
+───────────────────────────────
+• 9 core HR features (Employee, Attendance, Leave, Payroll, etc.)
+• 28 Total Screens (reduced from 58 - 52% optimization!)
+• 100+ Reusable Components
+• Tab-based navigation within unified pages
+• Dynamic data fetching based on role and context
+• Independent module structure (controllers, models, services, routes, events)
+• Events emitted for future module integration (no listeners needed now)
+• No dependencies on other modules
+• 5 User Roles (Employee, Manager, HR Admin, HR Manager, Super Admin)
+• Role-based TAB access control (not page-based)
+• Future modules (Finance, Inventory, Sales) can listen to HR events
+
+OPTIMIZATION ACHIEVEMENTS:
+──────────────────────────
+Before: 58 separate screens
+After: 28 unified pages
+Reduction: 52% fewer screens
+Development Time: 11-15 weeks (vs 14-21 weeks)
+Time Saved: 3-6 weeks
+
+KEY UNIFIED PAGES:
+──────────────────
+✓ EmployeePage → Dashboard + List + Departments + Designations (4 in 1)
+✓ AttendancePage → Dashboard + Mark + Calendar + Reports (4 in 1)
+✓ LeavePage → Dashboard + Apply + Approvals + History + Calendar (5 in 1)
+✓ PayrollPage → Dashboard + Process + Register + Reports (4 in 1)
+✓ ExpensePage → Dashboard + Submit + Approvals + History + Reports (6 in 1)
+✓ ExitManagementPage → All exit processes unified (6 in 1)
+
+NOTE: Listeners folder will remain empty until other modules are developed.
+
+IMPLEMENTATION PATH:
+────────────────────
+Phase 1 (3-4 weeks):  6 core unified pages  → Employee, Attendance, Leave
+Phase 2 (2-3 weeks):  6 pages               → Payroll + Advanced Attendance
+Phase 3 (6-8 weeks):  16 pages              → Advanced features
+
+Start with Phase 1 → Build unified pages with tab-based navigation!
+
+
+================================================================================
+                    TECHNICAL IMPLEMENTATION GUIDE
+================================================================================
+
+UNIFIED PAGE PATTERN:
+─────────────────────
+
+Structure of a Unified Page:
+// EmployeePage.jsx
+import React, { useState } from 'react';
+import { Tabs, Tab } from '@/components/Tabs';
+import { useAuth } from '@/hooks/useAuth';
+import { useQuery } from '@tanstack/react-query';
+
+const EmployeePage = () => {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('overview');
+  
+  // Dynamic data fetching based on active tab
+  const { data, isLoading } = useQuery({
+    queryKey: ['employees', activeTab, user.role],
+    queryFn: () => fetchEmployeeData(activeTab, user.role),
+    enabled: !!activeTab
+  });
+  
+  return (
+    <div className="employee-page">
+      <PageHeader title="Employee Management" />
+      
+      <Tabs value={activeTab} onChange={setActiveTab}>
+        {/* Always visible tabs */}
+        <Tab value="overview" label="Overview" />
+        
+        {/* Role-based tabs */}
+        {['hr_admin', 'hr_manager'].includes(user.role) && (
+          <>
+            <Tab value="all-employees" label="All Employees" />
+            <Tab value="departments" label="Departments" />
+            <Tab value="designations" label="Designations" />
+          </>
+        )}
+        
+        {user.role === 'manager' && (
+          <Tab value="my-team" label="My Team" />
+        )}
+      </Tabs>
+      
+      <TabContent>
+        {activeTab === 'overview' && <OverviewDashboard data={data} />}
+        {activeTab === 'all-employees' && <EmployeeList data={data} />}
+        {activeTab === 'departments' && <DepartmentGrid data={data} />}
+        {activeTab === 'designations' && <DesignationGrid data={data} />}
+        {activeTab === 'my-team' && <TeamView data={data} />}
+      </TabContent>
+    </div>
+  );
+};
+
+
+API DESIGN FOR UNIFIED PAGES:
+──────────────────────────────
+
+Single endpoint with query parameters:
+
+GET /api/hr/employees?view=overview&role=hr_admin
+GET /api/hr/employees?view=list&department=IT&status=active
+GET /api/hr/employees?view=departments
+GET /api/hr/employees?view=my-team&managerId=123
+
+Backend Controller:
+// employee.controller.js
+async function getEmployees(req, res) {
+  const { view, role, department, status, managerId } = req.query;
+  
+  switch(view) {
+    case 'overview':
+      return res.json(await employeeService.getDashboardStats(req.user));
+    
+    case 'list':
+      return res.json(await employeeService.getEmployeeList({
+        department,
+        status,
+        role: req.user.role
+      }));
+    
+    case 'departments':
+      return res.json(await employeeService.getDepartments());
+    
+    case 'my-team':
+      return res.json(await employeeService.getTeamMembers(managerId));
+    
+    default:
+      return res.status(400).json({ error: 'Invalid view' });
+  }
+}
+
+
+BENEFITS OF THIS APPROACH:
+───────────────────────────
+✓ Single source of truth for each feature area
+✓ Reduced code duplication
+✓ Better state management (one page = one state)
+✓ Easier to maintain and debug
+✓ Better performance (shared data cache)
+✓ Consistent UI/UX patterns
+✓ Faster navigation (no page reloads for tab changes)
+✓ Smaller bundle size
+✓ Role-based access centralized in one place
+
+
+================================================================================
+                              🎯 QUICK START
+================================================================================
+
+Ready to build? Follow this sequence:
+
+1. Setup Backend Structure
+   □ Create module folders (controllers, models, services, routes)
+   □ Setup database models
+   □ Create API endpoints with query parameter support
+
+2. Build First Unified Page (EmployeePage)
+   □ Create EmployeePage.jsx with tab navigation
+   □ Implement dynamic data fetching
+   □ Add role-based tab rendering
+   □ Test with different user roles
+
+3. Replicate Pattern
+   □ Use EmployeePage as template for other modules
+   □ Copy tab-based navigation pattern
+   □ Implement dynamic data fetching for each
+   □ Apply consistent styling
+
+4. Deploy & Test
+   □ Test role-based access
+   □ Verify data fetching for all tabs
+   □ Test navigation between pages
+   □ Validate API query parameters
+
+================================================================================

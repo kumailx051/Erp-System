@@ -1,0 +1,44 @@
+{
+  "name": "tech-horizon-erp-frontend",
+  "version": "1.0.0",
+  "description": "Tech Horizon ERP - Modern Enterprise Resource Planning System",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.21.1",
+    "antd": "^5.12.7",
+    "@ant-design/icons": "^5.2.6",
+    "axios": "^1.6.5",
+    "@tanstack/react-query": "^5.17.9",
+    "zustand": "^4.4.7",
+    "react-hook-form": "^7.49.3",
+    "framer-motion": "^10.18.0",
+    "lucide-react": "^0.303.0",
+    "recharts": "^2.10.3",
+    "dayjs": "^1.11.10"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.11",
+    "eslint": "^8.56.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.33",
+    "tailwindcss": "^3.4.1"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

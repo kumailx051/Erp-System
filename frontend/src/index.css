@@ -1,0 +1,184 @@
+/* postcss-import */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #ffffff;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #ffffff;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #ffffff;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Smooth transitions for all elements */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, transform 0.3s ease;
+}
+
+/* Glass morphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Shimmer animation for gradient borders */
+@keyframes shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* Employee form DatePicker field styling to match custom inputs */
+.employee-date-picker-dark.ant-picker {
+  background: #0f172a;
+  border-color: #334155;
+  border-radius: 0.75rem;
+}
+
+.employee-date-picker-dark.ant-picker:hover {
+  border-color: #22d3ee;
+}
+
+.employee-date-picker-dark.ant-picker.ant-picker-focused {
+  border-color: #22d3ee;
+  box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2);
+}
+
+.employee-date-picker-dark.ant-picker .ant-picker-input > input {
+  color: #f1f5f9;
+}
+
+.employee-date-picker-dark.ant-picker .ant-picker-input > input::placeholder {
+  color: #64748b;
+}
+
+.employee-date-picker-dark.ant-picker .ant-picker-suffix,
+.employee-date-picker-dark.ant-picker .ant-picker-clear {
+  color: #64748b;
+}
+
+.employee-date-picker-light.ant-picker {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  border-radius: 0.75rem;
+}
+
+.employee-date-picker-light.ant-picker:hover {
+  border-color: #60a5fa;
+}
+
+.employee-date-picker-light.ant-picker.ant-picker-focused {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.employee-date-picker-light.ant-picker .ant-picker-input > input {
+  color: #1f2937;
+}
+
+.employee-date-picker-light.ant-picker .ant-picker-input > input::placeholder {
+  color: #9ca3af;
+}
+
+.employee-date-picker-light.ant-picker .ant-picker-suffix,
+.employee-date-picker-light.ant-picker .ant-picker-clear {
+  color: #9ca3af;
+}
+
+.employee-date-picker-error.ant-picker {
+  border-color: #ef4444;
+}
+
+.employee-date-picker-error.ant-picker.ant-picker-focused {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.employee-date-picker-dark.employee-date-picker-error.ant-picker {
+  background: rgba(127, 29, 29, 0.3);
+}
+
+.employee-date-picker-light.employee-date-picker-error.ant-picker {
+  background: #fef2f2;
+}
+
+/* Native date/month input styling in dark cards/modals */
+.calendar-input-dark {
+  color-scheme: dark;
+}
+
+.calendar-input-dark[type='date']::-webkit-calendar-picker-indicator,
+.calendar-input-dark[type='month']::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.8);
+  opacity: 1;
+  cursor: pointer;
+}
+
+.calendar-input-dark[type='date']::-webkit-datetime-edit,
+.calendar-input-dark[type='month']::-webkit-datetime-edit {
+  color: #e2e8f0;
+}
