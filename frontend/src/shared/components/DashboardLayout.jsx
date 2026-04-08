@@ -117,6 +117,7 @@ const employeeSidebarGroups = [
       { path: '/dashboard/employee', icon: LayoutDashboard, label: 'Dashboard', exact: true },
       { path: '/dashboard/employee/attendance', icon: CalendarCheck, label: 'Attendance', exact: true },
       { path: '/dashboard/employee/leaves', icon: ClipboardList, label: 'Leaves', exact: true },
+      { path: '/dashboard/employee/salary', icon: Wallet, label: 'My Salary', exact: true },
       { path: '/dashboard/employee/resignation', icon: UserMinus, label: 'Resignation', exact: true },
     ],
   },

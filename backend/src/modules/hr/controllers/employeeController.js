@@ -1,8 +1,12 @@
 const { Employee, EmployeeDocument } = require('../models/Employee');
 const User = require('../../admin/models/User');
 const { Shift } = require('../models/Shift');
+const { sequelize } = require('../../../core/database/connection');
+const bcrypt = require('bcrypt');
 const path = require('path');
 const fs = require('fs');
+
+const DEFAULT_EMPLOYEE_TEMP_PASSWORD = '12345678';
 
 async function getNextEmployeeCodeValue() {
   const rows = await Employee.findAll({
@@ -121,6 +125,8 @@ exports.createEmployee = async (req, res) => {
 
     const generatedEmployeeCode = await getNextEmployeeCodeValue();
 
+    const fullName = `${String(firstName || '').trim()} ${String(lastName || '').trim()}`.trim();
+
     // Validate required fields
     if (!firstName || !lastName || !email || !department || !designation || !joinDate) {
       return res.status(400).json({
@@ -158,7 +164,7 @@ exports.createEmployee = async (req, res) => {
       });
     }
 
-    // Check if email already exists
+    // Check if email already exists in employee records
     const existingEmail = await Employee.findOne({ where: { email, is_active: true } });
     if (existingEmail) {
       return res.status(400).json({
@@ -184,51 +190,104 @@ exports.createEmployee = async (req, res) => {
       }
     }
 
-    // Create employee
-    const employee = await Employee.create({
-      user_id: req.user.sub, // From auth middleware
-      first_name: firstName,
-      last_name: lastName,
-      email,
-      phone: phone || null,
-      date_of_birth: dob || null,
-      gender: gender || null,
-      address: address || null,
-      city: city || null,
-      state: state || null,
-      zip_code: zipCode || null,
-      department,
-      designation,
-      shift_id: normalizedShiftId,
-      manager_id: managerId || null,
-      join_date: joinDate,
-      employment_type: employmentType || 'full_time',
-      base_salary: baseSalary || null,
-      employee_code: generatedEmployeeCode,
-      is_active: true
-    });
+    const isEmployeeSelfCreate = req.user?.role === 'employee';
+    const transaction = await sequelize.transaction();
+    let employee;
 
-    // Handle document uploads if files are attached
-    if (req.files && req.files.length > 0) {
-      const documents = [];
-      for (const file of req.files) {
-        const doc = await EmployeeDocument.create({
-          employee_id: employee.id,
-          document_type: req.body[`documentType_${file.fieldname}`] || 'other',
-          document_name: file.originalname,
-          file_path: `/uploads/${file.filename}`,
-          file_size: file.size,
-          mime_type: file.mimetype,
-          uploaded_by: req.user.sub
+    try {
+      let linkedUserId = req.user?.sub;
+
+      if (!isEmployeeSelfCreate) {
+        const existingUser = await User.findOne({
+          where: { email },
+          transaction
         });
-        documents.push(doc);
+
+        if (existingUser && !existingUser.is_active) {
+          throw new Error('A disabled user account exists for this email. Please contact admin.');
+        }
+
+        if (existingUser && existingUser.role !== 'employee') {
+          throw new Error('This email is already used by another account type.');
+        }
+
+        if (existingUser) {
+          linkedUserId = existingUser.id;
+        } else {
+          const passwordHash = await bcrypt.hash(DEFAULT_EMPLOYEE_TEMP_PASSWORD, 10);
+          const createdUser = await User.create(
+            {
+              full_name: fullName,
+              email,
+              password_hash: passwordHash,
+              temporary_password: DEFAULT_EMPLOYEE_TEMP_PASSWORD,
+              role: 'employee',
+              is_active: true
+            },
+            { transaction }
+          );
+          linkedUserId = createdUser.id;
+        }
       }
-      employee.documents = documents;
+
+      employee = await Employee.create(
+        {
+          user_id: linkedUserId,
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          phone: phone || null,
+          date_of_birth: dob || null,
+          gender: gender || null,
+          address: address || null,
+          city: city || null,
+          state: state || null,
+          zip_code: zipCode || null,
+          department,
+          designation,
+          shift_id: normalizedShiftId,
+          manager_id: managerId || null,
+          join_date: joinDate,
+          employment_type: employmentType || 'full_time',
+          base_salary: baseSalary || null,
+          employee_code: generatedEmployeeCode,
+          is_active: true
+        },
+        { transaction }
+      );
+
+      // Handle document uploads if files are attached
+      if (req.files && req.files.length > 0) {
+        const documents = [];
+        for (const file of req.files) {
+          const doc = await EmployeeDocument.create(
+            {
+              employee_id: employee.id,
+              document_type: req.body[`documentType_${file.fieldname}`] || 'other',
+              document_name: file.originalname,
+              file_path: `/uploads/${file.filename}`,
+              file_size: file.size,
+              mime_type: file.mimetype,
+              uploaded_by: req.user.sub
+            },
+            { transaction }
+          );
+          documents.push(doc);
+        }
+        employee.documents = documents;
+      }
+
+      await transaction.commit();
+    } catch (creationError) {
+      await transaction.rollback();
+      throw creationError;
     }
 
     res.status(201).json({
       success: true,
-      message: 'Employee created successfully',
+      message: isEmployeeSelfCreate
+        ? 'Employee profile created successfully'
+        : 'Employee created successfully. Account created with temporary password 12345678.',
       data: {
         id: employee.id,
         displaySequence: employee.id,
@@ -237,8 +296,10 @@ exports.createEmployee = async (req, res) => {
         department: employee.department,
         designation: employee.designation,
         shiftId: employee.shift_id,
+        userId: employee.user_id,
         employeeCode: employee.employee_code,
         joinDate: employee.join_date,
+        temporaryPassword: isEmployeeSelfCreate ? null : DEFAULT_EMPLOYEE_TEMP_PASSWORD,
         documents: employee.documents || []
       }
     });

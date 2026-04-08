@@ -490,7 +490,7 @@ const EmployeeForm = () => {
         throw new Error(result.message || 'Failed to save employee');
       }
 
-      setSuccessMessage(`Employee ${isEdit ? 'updated' : 'created'} successfully!`);
+      setSuccessMessage(result.message || `Employee ${isEdit ? 'updated' : 'created'} successfully!`);
       setTimeout(() => {
         navigate('/dashboard/hr/employees');
       }, 1500);

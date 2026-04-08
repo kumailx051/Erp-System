@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
-import { ArrowLeft, Wallet, Receipt, Calendar, Download, TrendingUp } from 'lucide-react';
-import { payrollService } from '../../services/payrollService';
+import { useOutletContext } from 'react-router-dom';
+import { Wallet, Receipt, Calendar, Download } from 'lucide-react';
+import { payrollService } from '../../hr/services/payrollService';
 
 function formatMoney(value) {
   const amount = Number(value || 0);
@@ -19,30 +19,25 @@ function monthLabel(monthYear) {
   return new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'short', year: 'numeric' });
 }
 
-const EmployeeSalary = () => {
-  const navigate = useNavigate();
-  const { id } = useParams();
+const EmployeeSalaryPage = () => {
   const { isDarkMode = false } = useOutletContext() || {};
-
   const [salary, setSalary] = useState(null);
   const [payslips, setPayslips] = useState([]);
   const [components, setComponents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadData() {
-      if (!id) return;
       try {
         setIsLoading(true);
         setError('');
 
         const [salaryPayload, payslipsPayload, componentsPayload] = await Promise.all([
-          payrollService.getEmployeeSalary(id),
-          payrollService.getEmployeePayslips(id, Number(selectedYear)),
+          payrollService.getMySalary(),
+          payrollService.getMyPayslips(),
           payrollService.getComponents()
         ]);
 
@@ -50,7 +45,7 @@ const EmployeeSalary = () => {
 
         setSalary(salaryPayload?.data || null);
         setPayslips(payslipsPayload?.data?.payslips || []);
-        setComponents(componentsPayload?.data || []);
+        setComponents((componentsPayload?.data || []).filter((item) => item.isActive));
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError.message || 'Unable to load salary details.');
@@ -63,37 +58,33 @@ const EmployeeSalary = () => {
     }
 
     loadData();
+
     return () => {
       cancelled = true;
     };
-  }, [id, selectedYear]);
+  }, []);
 
-  const salaryRows = useMemo(() => {
+  const structureRows = useMemo(() => {
     if (!salary) return [];
 
     const baseSalary = Number(salary.baseSalary || 0);
-    const rows = [{ k: 'Basic Salary', v: formatMoney(baseSalary) }];
+    const rows = [{ name: 'Basic Salary', value: formatMoney(baseSalary), type: 'earning' }];
 
     components.forEach((component) => {
-      const value = Number(component.value || 0);
-      let amount = 0;
-      if (component.valueType === 'fixed') {
-        amount = value;
-      } else {
-        amount = (baseSalary * value) / 100;
-      }
+      const numericValue = Number(component.value || 0);
+      const amount = component.valueType === 'fixed'
+        ? numericValue
+        : (baseSalary * numericValue) / 100;
 
       rows.push({
-        k: component.name,
-        v: formatMoney(amount),
+        name: component.name,
+        value: formatMoney(amount),
         type: component.componentType
       });
     });
 
     return rows;
   }, [salary, components]);
-
-  const latest = payslips[0] || null;
 
   const handleDownload = async (payslipId) => {
     try {
@@ -113,19 +104,11 @@ const EmployeeSalary = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => navigate('/dashboard/hr/payroll')}
-          className={`p-2 rounded-xl ${isDarkMode ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div>
-          <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Employee Salary</h1>
-          <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-            Salary structure and monthly payouts for {salary?.fullName || `employee #${id}`}
-          </p>
-        </div>
+      <div>
+        <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>My Salary</h1>
+        <p className={`text-sm mt-1 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
+          Track your salary structure and monthly payslips.
+        </p>
       </div>
 
       {error && (
@@ -135,23 +118,29 @@ const EmployeeSalary = () => {
       )}
 
       {isLoading && (
-        <div className={`rounded-xl border px-4 py-3 text-sm ${isDarkMode ? 'border-cyan-500/20 bg-cyan-500/10 text-cyan-200' : 'border-blue-200 bg-blue-50 text-blue-700'}`}>
+        <div className={`rounded-xl border px-4 py-3 text-sm ${isDarkMode ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200' : 'border-blue-200 bg-blue-50 text-blue-700'}`}>
           Loading salary details...
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
-          { label: 'Current CTC', value: salary ? `${formatMoney(salary.annualCtc)} / year` : '--', icon: Wallet, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Last Net Pay', value: latest ? formatMoney(latest.netPay) : '--', icon: Receipt, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-          { label: 'Revision', value: salary?.structureNotes || 'No revisions recorded', icon: TrendingUp, color: 'text-violet-600', bg: 'bg-violet-50' },
-        ].map((item, i) => (
-          <motion.div key={item.label} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }} className={`rounded-2xl border shadow-sm p-5 ${isDarkMode ? 'bg-[#0d2230] border-cyan-400/10 shadow-black/20' : 'bg-white border-gray-100'}`}>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${isDarkMode ? 'bg-white/5' : item.bg}`}>
-              <item.icon className={`w-5 h-5 ${item.color}`} />
+          { label: 'Annual CTC', value: salary ? formatMoney(salary.annualCtc) : '--', icon: Wallet, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Last Net Pay', value: salary ? formatMoney(salary.lastNetPay) : '--', icon: Receipt, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { label: 'Latest Payslip', value: salary?.latestMonth ? monthLabel(salary.latestMonth) : '--', icon: Calendar, color: 'text-violet-600', bg: 'bg-violet-50' },
+        ].map((card, index) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.08 }}
+            className={`rounded-2xl border shadow-sm p-5 ${isDarkMode ? 'bg-[#0d2230] border-cyan-400/10 shadow-black/20' : 'bg-white border-gray-100'}`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${isDarkMode ? 'bg-white/5' : card.bg}`}>
+              <card.icon className={`w-5 h-5 ${card.color}`} />
             </div>
-            <div className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{item.value}</div>
-            <div className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>{item.label}</div>
+            <div className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{card.value}</div>
+            <div className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>{card.label}</div>
           </motion.div>
         ))}
       </div>
@@ -159,33 +148,27 @@ const EmployeeSalary = () => {
       <div className={`rounded-2xl border shadow-sm p-6 ${isDarkMode ? 'bg-[#0d2230] border-cyan-400/10 shadow-black/20' : 'bg-white border-gray-100'}`}>
         <h3 className={`text-base font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Salary Structure</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {salaryRows.map((row) => (
-            <div key={row.k} className={`flex items-center justify-between px-4 py-3 rounded-xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-gray-50 border-gray-100'}`}>
+          {structureRows.map((row) => (
+            <div key={row.name} className={`flex items-center justify-between px-4 py-3 rounded-xl border ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-gray-50 border-gray-100'}`}>
               <span className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-gray-600'}`}>
-                {row.k}
-                {row.type ? ` (${row.type})` : ''}
+                {row.name} ({row.type})
               </span>
-              <span className={`text-sm font-semibold ${isDarkMode ? 'text-slate-100' : 'text-gray-900'}`}>{row.v}</span>
+              <span className={`text-sm font-semibold ${isDarkMode ? 'text-slate-100' : 'text-gray-900'}`}>{row.value}</span>
             </div>
           ))}
         </div>
       </div>
 
       <div className={`rounded-2xl border shadow-sm overflow-hidden ${isDarkMode ? 'bg-[#0d2230] border-cyan-400/10 shadow-black/20' : 'bg-white border-gray-100'}`}>
-        <div className={`px-5 py-4 border-b flex items-center justify-between ${isDarkMode ? 'border-slate-800' : 'border-gray-100'}`}>
+        <div className={`px-5 py-4 border-b ${isDarkMode ? 'border-slate-800' : 'border-gray-100'}`}>
           <h3 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Payslip History</h3>
-          <button className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium ${isDarkMode ? 'bg-slate-900 hover:bg-slate-800 text-slate-200' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>
-            <Calendar className="w-4 h-4" />
-            {selectedYear}
-          </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px]">
             <thead>
               <tr className={`border-b ${isDarkMode ? 'border-slate-800' : 'border-gray-100'}`}>
                 <th className={`text-left px-5 py-3 text-xs font-semibold uppercase ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Month</th>
-                <th className={`text-right px-5 py-3 text-xs font-semibold uppercase ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Basic</th>
-                <th className={`text-right px-5 py-3 text-xs font-semibold uppercase ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Allowance</th>
+                <th className={`text-right px-5 py-3 text-xs font-semibold uppercase ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Gross</th>
                 <th className={`text-right px-5 py-3 text-xs font-semibold uppercase ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Deductions</th>
                 <th className={`text-right px-5 py-3 text-xs font-semibold uppercase ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Net</th>
                 <th className={`text-left px-5 py-3 text-xs font-semibold uppercase ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>Status</th>
@@ -196,13 +179,12 @@ const EmployeeSalary = () => {
               {payslips.map((row) => (
                 <tr key={row.id} className={isDarkMode ? 'hover:bg-slate-900/60' : 'hover:bg-gray-50/50'}>
                   <td className={`px-5 py-3.5 text-sm font-medium ${isDarkMode ? 'text-slate-100' : 'text-gray-800'}`}>{monthLabel(row.monthYear)}</td>
-                  <td className={`px-5 py-3.5 text-sm text-right ${isDarkMode ? 'text-slate-300' : 'text-gray-700'}`}>{formatMoney(row.baseSalary)}</td>
-                  <td className={`px-5 py-3.5 text-sm text-right ${isDarkMode ? 'text-slate-300' : 'text-gray-700'}`}>{formatMoney(Number(row.grossPay || 0) - Number(row.baseSalary || 0))}</td>
+                  <td className={`px-5 py-3.5 text-sm text-right ${isDarkMode ? 'text-slate-300' : 'text-gray-700'}`}>{formatMoney(row.grossPay)}</td>
                   <td className={`px-5 py-3.5 text-sm text-right ${isDarkMode ? 'text-slate-300' : 'text-gray-700'}`}>{formatMoney(row.deductions)}</td>
                   <td className={`px-5 py-3.5 text-sm font-semibold text-right ${isDarkMode ? 'text-slate-100' : 'text-gray-900'}`}>{formatMoney(row.netPay)}</td>
                   <td className="px-5 py-3.5">
                     <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${row.status === 'paid' ? (isDarkMode ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border-emerald-200') : (isDarkMode ? 'bg-amber-500/10 text-amber-300 border-amber-500/20' : 'bg-amber-50 text-amber-700 border-amber-200')}`}>
-                      {String(row.status || '').toUpperCase()}
+                      {String(row.status).toUpperCase()}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-right">
@@ -218,8 +200,8 @@ const EmployeeSalary = () => {
               ))}
               {!isLoading && payslips.length === 0 && (
                 <tr>
-                  <td colSpan={7} className={`px-5 py-6 text-sm text-center ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-                    No payslip data found for {selectedYear}.
+                  <td colSpan={6} className={`px-5 py-6 text-sm text-center ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
+                    No payslips available yet.
                   </td>
                 </tr>
               )}
@@ -231,4 +213,4 @@ const EmployeeSalary = () => {
   );
 };
 
-export default EmployeeSalary;
+export default EmployeeSalaryPage;

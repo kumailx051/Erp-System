@@ -47,6 +47,7 @@ import EmployeeAttendancePage from './modules/users/pages/EmployeeAttendancePage
 import EmployeeLeavePage from './modules/users/pages/EmployeeLeavePage';
 import EmployeeResignationPage from './modules/users/pages/EmployeeResignationPage';
 import EmployeeProfileSetupPage from './modules/users/pages/EmployeeProfileSetupPage';
+import EmployeeSalaryPage from './modules/users/pages/EmployeeSalaryPage';
 
 // HR Module Pages — Exit
 import ExitManagementPage from './modules/hr/pages/exitManagement/ExitManagementPage';
@@ -147,6 +148,7 @@ function App() {
           <Route path="employee" element={<EmployeeDashboardPage />} />
           <Route path="employee/attendance" element={<EmployeeAttendancePage />} />
           <Route path="employee/leaves" element={<EmployeeLeavePage />} />
+          <Route path="employee/salary" element={<EmployeeSalaryPage />} />
           <Route path="employee/resignation" element={<EmployeeResignationPage />} />
         </Route>
 

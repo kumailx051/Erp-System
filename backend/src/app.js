@@ -15,6 +15,7 @@ const leaveTypeRoutes = require('./modules/hr/routes/leaveTypeRoutes');
 const leaveRoutes = require('./modules/hr/routes/leaveRoutes');
 const recruitmentRoutes = require('./modules/hr/routes/recruitmentRoutes');
 const exitRoutes = require('./modules/hr/routes/exitRoutes');
+const payrollRoutes = require('./modules/hr/routes/payrollRoutes');
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use('/api/hr', leaveTypeRoutes);
 app.use('/api/hr', leaveRoutes);
 app.use('/api/hr', recruitmentRoutes);
 app.use('/api/hr', exitRoutes);
+app.use('/api/hr', payrollRoutes);
 
 app.use((req, res) => {
 	res.status(404).json({ message: 'Route not found' });

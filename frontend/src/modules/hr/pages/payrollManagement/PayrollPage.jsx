@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import {
@@ -12,20 +12,16 @@ import {
   FileSpreadsheet,
   Settings,
 } from 'lucide-react';
+import { payrollService } from '../../services/payrollService';
 
-const payrollStats = [
-  { label: 'Net Payroll', value: '$245,820', sub: 'March 2026', icon: Wallet, color: 'text-blue-600', bg: 'bg-blue-50' },
-  { label: 'Employees Paid', value: '152', sub: 'of 156', icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-  { label: 'Pending', value: '4', sub: 'needs review', icon: PlayCircle, color: 'text-amber-600', bg: 'bg-amber-50' },
-  { label: 'Variance', value: '+4.2%', sub: 'vs last month', icon: TrendingUp, color: 'text-violet-600', bg: 'bg-violet-50' },
-];
-
-const salaryRegister = [
-  { id: 1, code: 'EMP-001', name: 'Sarah Johnson', dept: 'Engineering', gross: '$7,900', deductions: '$1,180', net: '$6,720', status: 'Paid' },
-  { id: 2, code: 'EMP-002', name: 'Mike Chen', dept: 'Design', gross: '$6,800', deductions: '$990', net: '$5,810', status: 'Paid' },
-  { id: 3, code: 'EMP-003', name: 'Emily Davis', dept: 'Marketing', gross: '$6,300', deductions: '$930', net: '$5,370', status: 'Pending' },
-  { id: 4, code: 'EMP-004', name: 'Robert Taylor', dept: 'Finance', gross: '$7,200', deductions: '$1,060', net: '$6,140', status: 'Paid' },
-];
+function formatMoney(value) {
+  const amount = Number(value || 0);
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 2
+  }).format(Number.isFinite(amount) ? amount : 0);
+}
 
 const TabButton = ({ active, children, onClick, isDarkMode }) => (
   <button
@@ -59,12 +55,71 @@ const StatusBadge = ({ status, isDarkMode }) => (
 const PayrollPage = () => {
   const [tab, setTab] = useState('overview');
   const [search, setSearch] = useState('');
+  const [summary, setSummary] = useState(null);
+  const [salaryRegister, setSalaryRegister] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+
   const navigate = useNavigate();
   const { isDarkMode = false } = useOutletContext() || {};
 
-  const filtered = salaryRegister.filter((row) =>
-    `${row.name} ${row.code} ${row.dept}`.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPayrollData() {
+      try {
+        setIsLoading(true);
+        setError('');
+
+        const [summaryPayload, registerPayload] = await Promise.all([
+          payrollService.getSummary(currentMonth, currentYear),
+          payrollService.getRegister(currentMonth, currentYear, search)
+        ]);
+
+        if (cancelled) return;
+
+        setSummary(summaryPayload?.data || null);
+        setSalaryRegister(registerPayload?.data?.rows || []);
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(loadError.message || 'Unable to load payroll data.');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadPayrollData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentMonth, currentYear, search]);
+
+  const payrollStats = useMemo(() => ([
+    { label: 'Net Payroll', value: summary ? formatMoney(summary.netPayroll) : '--', sub: `${currentYear}-${String(currentMonth).padStart(2, '0')}`, icon: Wallet, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Employees Paid', value: summary ? String(summary.paidCount) : '0', sub: summary ? `of ${summary.employeeCount}` : 'of 0', icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Pending', value: summary ? String(summary.pendingCount) : '0', sub: 'needs review', icon: PlayCircle, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'Gross Payroll', value: summary ? formatMoney(summary.grossPayroll) : '--', sub: 'current month', icon: TrendingUp, color: 'text-violet-600', bg: 'bg-violet-50' },
+  ]), [summary, currentMonth, currentYear]);
+
+  const filtered = salaryRegister.map((row) => ({
+    id: row.id,
+    employeeId: row.employeeId,
+    code: row.employeeCode,
+    name: row.employeeName,
+    dept: row.department,
+    gross: formatMoney(row.grossPay),
+    deductions: formatMoney(row.deductions),
+    net: formatMoney(row.netPay),
+    status: row.status === 'paid' ? 'Paid' : 'Pending'
+  }));
 
   return (
     <div className="space-y-6">
@@ -87,6 +142,18 @@ const PayrollPage = () => {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className={`rounded-xl border px-4 py-3 text-sm ${isDarkMode ? 'border-rose-500/30 bg-rose-500/10 text-rose-200' : 'border-rose-200 bg-rose-50 text-rose-700'}`}>
+          {error}
+        </div>
+      )}
+
+      {isLoading && (
+        <div className={`rounded-xl border px-4 py-3 text-sm ${isDarkMode ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200' : 'border-blue-200 bg-blue-50 text-blue-700'}`}>
+          Loading payroll data...
+        </div>
+      )}
 
       <div className="flex items-center space-x-2 overflow-x-auto pb-1">
         {['overview', 'process', 'register', 'reports'].map((item) => (
@@ -133,7 +200,7 @@ const PayrollPage = () => {
                     </tr>
                   </thead>
                   <tbody className={`divide-y ${isDarkMode ? 'divide-slate-800' : 'divide-gray-50'}`}>
-                    {salaryRegister.map((row) => (
+                    {filtered.map((row) => (
                       <tr key={row.id} className={isDarkMode ? 'hover:bg-slate-900/60 transition-colors' : 'hover:bg-gray-50/50 transition-colors'}>
                         <td className="px-4 py-3.5">
                           <div className={`text-sm font-medium ${isDarkMode ? 'text-slate-100' : 'text-gray-800'}`}>{row.name}</div>
@@ -161,7 +228,10 @@ const PayrollPage = () => {
                 <ChevronRight className="w-4 h-4" />
               </button>
               <button
-                onClick={() => navigate('/dashboard/hr/payroll/salary/1')}
+                onClick={() => {
+                  const target = filtered[0]?.employeeId;
+                  if (target) navigate(`/dashboard/hr/payroll/salary/${target}`);
+                }}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-colors ${isDarkMode ? 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}`}
               >
                 <span className="text-sm font-medium">Open Employee Salary</span>
@@ -234,7 +304,7 @@ const PayrollPage = () => {
                     <td className="px-4 py-3.5"><StatusBadge status={row.status} isDarkMode={isDarkMode} /></td>
                     <td className="px-4 py-3.5 text-right">
                       <button
-                        onClick={() => navigate(`/dashboard/hr/payroll/salary/${row.id}`)}
+                        onClick={() => navigate(`/dashboard/hr/payroll/salary/${row.employeeId}`)}
                         className={`inline-flex items-center gap-1.5 text-sm font-medium ${isDarkMode ? 'text-cyan-300 hover:text-cyan-200' : 'text-blue-600 hover:text-blue-700'}`}
                       >
                         <FileSpreadsheet className="w-4 h-4" />

@@ -487,6 +487,14 @@ const EmployeeDashboardPage = () => {
             <p className={`text-xs mt-1 leading-5 ${isDarkMode ? 'text-slate-300' : 'text-blue-900/80'}`}>
               Keep your work details up-to-date so HR can process payroll, attendance, and leave requests without delays.
             </p>
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard/employee/salary')}
+              className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${isDarkMode ? 'bg-cyan-600 hover:bg-cyan-500 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+            >
+              View My Salary
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </div>

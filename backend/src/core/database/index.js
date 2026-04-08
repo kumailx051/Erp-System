@@ -24,6 +24,12 @@ const CurrentOpening = require('../../modules/hr/models/CurrentOpening');
 const Candidate = require('../../modules/hr/models/Candidate');
 const JobApplication = require('../../modules/hr/models/JobApplication');
 const RecruitmentWorkflow = require('../../modules/hr/models/RecruitmentWorkflow');
+const SalaryComponent = require('../../modules/hr/models/SalaryComponent');
+const EmployeeSalaryStructure = require('../../modules/hr/models/EmployeeSalaryStructure');
+const PayrollRun = require('../../modules/hr/models/PayrollRun');
+const Payslip = require('../../modules/hr/models/Payslip');
+const PayslipLineItem = require('../../modules/hr/models/PayslipLineItem');
+const PayrollRule = require('../../modules/hr/models/PayrollRule');
 const User = require('../../modules/admin/models/User');
 
 /**
@@ -75,7 +81,7 @@ function registerModels() {
   // Set up associations between models
   setupAssociations();
   
-  console.log('✓ Models registered (User, Employee, EmployeeDocument, Department, Designation, DepartmentHead, Attendance, Shift, LeaveType, Leave, ExitRequest, CurrentOpening, Candidate, JobApplication, RecruitmentWorkflow)');
+  console.log('✓ Models registered (User, Employee, EmployeeDocument, Department, Designation, DepartmentHead, Attendance, Shift, LeaveType, Leave, ExitRequest, CurrentOpening, Candidate, JobApplication, RecruitmentWorkflow, SalaryComponent, EmployeeSalaryStructure, PayrollRun, Payslip, PayslipLineItem, PayrollRule)');
 }
 
 /**
@@ -131,6 +137,30 @@ function setupAssociations() {
   RecruitmentWorkflow.belongsTo(JobApplication, { foreignKey: 'job_application_id', as: 'application' });
   CurrentOpening.hasMany(RecruitmentWorkflow, { foreignKey: 'current_opening_id', as: 'workflowEntries' });
   RecruitmentWorkflow.belongsTo(CurrentOpening, { foreignKey: 'current_opening_id', as: 'opening' });
+
+  // Salary structure associations
+  Employee.hasOne(EmployeeSalaryStructure, { foreignKey: 'employee_id', as: 'salaryStructure' });
+  EmployeeSalaryStructure.belongsTo(Employee, { foreignKey: 'employee_id', as: 'employee' });
+
+  // Payroll run and payslip associations
+  PayrollRun.hasMany(Payslip, { foreignKey: 'payroll_run_id', as: 'payslips' });
+  Payslip.belongsTo(PayrollRun, { foreignKey: 'payroll_run_id', as: 'payrollRun' });
+
+  Employee.hasMany(Payslip, { foreignKey: 'employee_id', as: 'payslips' });
+  Payslip.belongsTo(Employee, { foreignKey: 'employee_id', as: 'employee' });
+
+  Payslip.hasMany(PayslipLineItem, { foreignKey: 'payslip_id', as: 'lineItems' });
+  PayslipLineItem.belongsTo(Payslip, { foreignKey: 'payslip_id', as: 'payslip' });
+
+  // Auditing associations
+  User.hasMany(SalaryComponent, { foreignKey: 'created_by', as: 'createdSalaryComponents' });
+  SalaryComponent.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
+  User.hasMany(EmployeeSalaryStructure, { foreignKey: 'created_by', as: 'createdSalaryStructures' });
+  EmployeeSalaryStructure.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
+  User.hasMany(PayrollRun, { foreignKey: 'initiated_by', as: 'initiatedPayrollRuns' });
+  PayrollRun.belongsTo(User, { foreignKey: 'initiated_by', as: 'initiator' });
   
   console.log('✓ Model associations set up');
 }

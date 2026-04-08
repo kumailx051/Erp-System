@@ -439,3 +439,165 @@ CREATE TABLE exit_requests (
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+
+-- ==========================================
+-- Payroll Management Tables
+-- ==========================================
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'salary_component_type_enum') THEN
+    CREATE TYPE salary_component_type_enum AS ENUM ('earning', 'deduction');
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'salary_value_type_enum') THEN
+    CREATE TYPE salary_value_type_enum AS ENUM ('fixed', 'percentage');
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'salary_percentage_of_enum') THEN
+    CREATE TYPE salary_percentage_of_enum AS ENUM ('base_salary', 'gross_pay');
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payroll_run_status_enum') THEN
+    CREATE TYPE payroll_run_status_enum AS ENUM ('draft', 'processing', 'approved', 'published');
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payslip_status_enum') THEN
+    CREATE TYPE payslip_status_enum AS ENUM ('generated', 'approved', 'paid');
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payroll_rule_category_enum') THEN
+    CREATE TYPE payroll_rule_category_enum AS ENUM ('salary', 'leave', 'overtime', 'cycle');
+  END IF;
+END $$;
+
+-- Salary components (Earning/Deduction masters)
+CREATE TABLE IF NOT EXISTS salary_components (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(120) NOT NULL UNIQUE,
+  component_type salary_component_type_enum NOT NULL,
+  value_type salary_value_type_enum NOT NULL DEFAULT 'fixed',
+  value NUMERIC(12,2) NOT NULL DEFAULT 0,
+  percentage_of salary_percentage_of_enum NOT NULL DEFAULT 'base_salary',
+  is_taxable BOOLEAN NOT NULL DEFAULT FALSE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Employee salary structure (one active structure per employee)
+CREATE TABLE IF NOT EXISTS employee_salary_structures (
+  id SERIAL PRIMARY KEY,
+  employee_id INTEGER NOT NULL UNIQUE REFERENCES employees(id) ON DELETE CASCADE,
+  annual_ctc NUMERIC(12,2),
+  notes TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  effective_from DATE NOT NULL DEFAULT CURRENT_DATE,
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Payroll run tracking (one run per month-year)
+CREATE TABLE IF NOT EXISTS payroll_runs (
+  id SERIAL PRIMARY KEY,
+  month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
+  year INTEGER NOT NULL CHECK (year BETWEEN 2000 AND 2100),
+  status payroll_run_status_enum NOT NULL DEFAULT 'draft',
+  current_step INTEGER NOT NULL DEFAULT 1 CHECK (current_step BETWEEN 1 AND 5),
+  processed_at TIMESTAMP WITH TIME ZONE,
+  published_at TIMESTAMP WITH TIME ZONE,
+  initiated_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  CONSTRAINT uq_payroll_runs_month_year UNIQUE (month, year)
+);
+
+-- Payslips generated per employee per month
+CREATE TABLE IF NOT EXISTS payslips (
+  id SERIAL PRIMARY KEY,
+  payroll_run_id INTEGER NOT NULL REFERENCES payroll_runs(id) ON DELETE CASCADE,
+  employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  month_year VARCHAR(7) NOT NULL,
+  base_salary NUMERIC(12,2) NOT NULL DEFAULT 0,
+  payable_days NUMERIC(8,2) NOT NULL DEFAULT 0,
+  working_days INTEGER NOT NULL DEFAULT 30,
+  overtime_minutes INTEGER NOT NULL DEFAULT 0,
+  gross_pay NUMERIC(12,2) NOT NULL DEFAULT 0,
+  total_deductions NUMERIC(12,2) NOT NULL DEFAULT 0,
+  net_pay NUMERIC(12,2) NOT NULL DEFAULT 0,
+  status payslip_status_enum NOT NULL DEFAULT 'generated',
+  generated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  CONSTRAINT uq_payslips_employee_month UNIQUE (employee_id, month_year)
+);
+
+-- Payslip line items (earnings and deductions details)
+CREATE TABLE IF NOT EXISTS payslip_line_items (
+  id SERIAL PRIMARY KEY,
+  payslip_id INTEGER NOT NULL REFERENCES payslips(id) ON DELETE CASCADE,
+  name VARCHAR(120) NOT NULL,
+  item_type salary_component_type_enum NOT NULL,
+  amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Payroll rules (global payroll settings that affect real calculations)
+CREATE TABLE IF NOT EXISTS payroll_rules (
+  id SERIAL PRIMARY KEY,
+  rule_key VARCHAR(80) NOT NULL UNIQUE,
+  label VARCHAR(120) NOT NULL,
+  category payroll_rule_category_enum NOT NULL DEFAULT 'salary',
+  value JSONB NOT NULL DEFAULT '{}'::jsonb,
+  description TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Useful indexes
+CREATE INDEX IF NOT EXISTS idx_salary_components_type ON salary_components(component_type);
+CREATE INDEX IF NOT EXISTS idx_salary_components_active ON salary_components(is_active);
+
+CREATE INDEX IF NOT EXISTS idx_employee_salary_structures_employee ON employee_salary_structures(employee_id);
+CREATE INDEX IF NOT EXISTS idx_employee_salary_structures_active ON employee_salary_structures(is_active);
+
+CREATE INDEX IF NOT EXISTS idx_payroll_runs_status ON payroll_runs(status);
+CREATE INDEX IF NOT EXISTS idx_payroll_runs_initiated_by ON payroll_runs(initiated_by);
+
+CREATE INDEX IF NOT EXISTS idx_payslips_payroll_run_id ON payslips(payroll_run_id);
+CREATE INDEX IF NOT EXISTS idx_payslips_month_year ON payslips(month_year);
+CREATE INDEX IF NOT EXISTS idx_payslips_status ON payslips(status);
+
+CREATE INDEX IF NOT EXISTS idx_payslip_line_items_payslip_id ON payslip_line_items(payslip_id);
+CREATE INDEX IF NOT EXISTS idx_payroll_rules_category ON payroll_rules(category);
+
+
+-- Seed default payroll rules
+INSERT INTO payroll_rules (rule_key, label, category, value, description, is_active)
+VALUES
+  ('salary_basis', 'Salary Basis', 'salary', '{"mode":"fixed_30","options":["fixed_30","calendar_days"]}'::jsonb, 'Choose whether monthly salary uses fixed 30 days or actual calendar days.', TRUE),
+  ('paid_leave_treatment', 'Paid Leave Treatment', 'leave', '{"mode":"paid","options":["paid","deduct"]}'::jsonb, 'Control whether approved paid leaves are paid or deducted.', TRUE),
+  ('leave_deduction_rate', 'Leave Deduction Rate', 'leave', '{"rate":1}'::jsonb, 'Deduction multiplier for unpaid leave day calculation.', TRUE),
+  ('overtime_multiplier', 'Overtime Multiplier', 'overtime', '{"multiplier":1.5}'::jsonb, 'Multiplier applied on overtime hourly rate.', TRUE),
+  ('proration_mode', 'Proration Mode', 'salary', '{"mode":"daily","options":["daily","monthly"]}'::jsonb, 'Determines whether salary is prorated daily or treated as monthly fixed.', TRUE)
+ON CONFLICT (rule_key) DO NOTHING;
