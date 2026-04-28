@@ -6,7 +6,7 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import {
   User, Briefcase, FileText, Save,
   Mail, Phone, MapPin, Building2, Hash,
-  Upload, ChevronRight, CheckCircle, AlertCircle, Trash2
+  Upload, FileUp, ChevronRight, CheckCircle, AlertCircle, Trash2
 } from 'lucide-react';
 
 const steps = [
@@ -536,13 +536,26 @@ const EmployeeForm = () => {
       )}
 
       {/* Header */}
-      <div>
-        <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-          {isEdit ? 'Edit Employee' : 'Add New Employee'}
-        </h1>
-        <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-          {isEdit ? 'Update employee information' : 'Fill in all required fields (*) to add a new employee'}
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            {isEdit ? 'Edit Employee' : 'Add New Employee'}
+          </h1>
+          <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
+            {isEdit ? 'Update employee information' : 'Fill in all required fields (*) to add a new employee'}
+          </p>
+        </div>
+
+        {!isEdit && (
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard/hr/employee/import')}
+            className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${isDarkMode ? 'border-slate-700 text-slate-200 hover:bg-slate-800' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+          >
+            <FileUp className="w-4 h-4" />
+            Import Employees
+          </button>
+        )}
       </div>
 
       {/* Steps */}

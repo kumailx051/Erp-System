@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
 const { isTokenRevoked } = require('./tokenBlacklist');
+const User = require('../../modules/admin/models/User');
 
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -20,6 +21,17 @@ function requireAuth(req, res, next) {
     }
 
     const payload = jwt.verify(token, jwtSecret);
+
+    const user = await User.findByPk(payload.sub, {
+      attributes: ['id', 'role', 'is_active']
+    });
+
+    if (!user || !user.is_active) {
+      return res.status(401).json({
+        message: 'Account deactivated. Please contact administrator.'
+      });
+    }
+
     req.user = payload;
     req.token = token;
     return next();

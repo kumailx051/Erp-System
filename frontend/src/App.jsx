@@ -14,6 +14,7 @@ import DashboardLayout from './shared/components/DashboardLayout';
 // HR Module Pages — Employee Management
 import EmployeePage from './modules/hr/pages/employeeManagement/EmployeePage';
 import EmployeeForm from './modules/hr/pages/employeeManagement/EmployeeForm';
+import EmployeeImportPage from './modules/hr/pages/employeeManagement/EmployeeImportPage';
 import EmployeeProfile from './modules/hr/pages/employeeManagement/EmployeeProfile';
 import OrganizationChart from './modules/hr/pages/employeeManagement/OrganizationChart';
 import DepartmentDesignationPage from './modules/hr/pages/employeeManagement/DepartmentDesignationPage';
@@ -23,6 +24,7 @@ import DesignationPage from './modules/hr/pages/employeeManagement/DesignationPa
 import AttendancePage from './modules/hr/pages/attendanceManagement/AttendancePage';
 import AttendanceDetailPage from './modules/hr/pages/attendanceManagement/AttendanceDetailPage';
 import ShiftManagement from './modules/hr/pages/attendanceManagement/ShiftManagement';
+import AttendanceReportPage from './modules/hr/pages/attendanceManagement/AttendanceReportPage';
 
 // HR Module Pages — Leave Management
 import LeavePage from './modules/hr/pages/leaveManagement/LeavePage';
@@ -35,6 +37,7 @@ import PayrollPage from './modules/hr/pages/payrollManagement/PayrollPage';
 import EmployeeSalary from './modules/hr/pages/payrollManagement/EmployeeSalary';
 import PayrollProcessing from './modules/hr/pages/payrollManagement/PayrollProcessing';
 import PayrollSettings from './modules/hr/pages/payrollManagement/PayrollSettings';
+import PayrollReportPage from './modules/hr/pages/payrollManagement/PayrollReportPage';
 
 // HR Module Pages — Recruitment
 import RecruitmentPage from './modules/hr/pages/recruitmentManagement/RecruitmentPage';
@@ -112,6 +115,7 @@ function App() {
           {/* HR - Employee Management */}
           <Route path="hr/employees" element={<EmployeePage />} />
           <Route path="hr/employee/new" element={<EmployeeForm />} />
+          <Route path="hr/employee/import" element={<EmployeeImportPage />} />
           <Route path="hr/employee/:id" element={<EmployeeProfile />} />
           <Route path="hr/departments-designations" element={<DepartmentDesignationPage />} />
           <Route path="hr/designations" element={<DesignationPage />} />
@@ -121,6 +125,7 @@ function App() {
           <Route path="hr/attendance" element={<AttendancePage />} />
           <Route path="hr/attendance/:id" element={<AttendanceDetailPage />} />
           <Route path="hr/shifts" element={<ShiftManagement />} />
+          <Route path="hr/attendance-reports" element={<AttendanceReportPage />} />
 
           {/* HR - Leave Management */}
           <Route path="hr/leaves" element={<LeavePage />} />
@@ -132,6 +137,7 @@ function App() {
           <Route path="hr/payroll/salary/:id" element={<EmployeeSalary />} />
           <Route path="hr/payroll/process" element={<PayrollProcessing />} />
           <Route path="hr/payroll/settings" element={<PayrollSettings />} />
+          <Route path="hr/payroll-reports" element={<PayrollReportPage />} />
 
           {/* HR - Recruitment */}
           <Route path="hr/recruitment" element={<RecruitmentPage />} />

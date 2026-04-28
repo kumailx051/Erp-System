@@ -1,6 +1,7 @@
 const { sequelize } = require('../../../core/database/connection');
 const ExitRequest = require('../models/ExitRequest');
 const { Employee } = require('../models/Employee');
+const User = require('../../admin/models/User');
 
 function isPrivilegedRole(role) {
   return ['hr', 'admin'].includes(String(role || '').toLowerCase());
@@ -271,6 +272,25 @@ exports.updateExitDecision = async (req, res) => {
       reviewed_by: Number(req.user?.sub) || null,
       reviewed_at: new Date()
     }, { transaction });
+
+    if (decision === 'approved') {
+      const employee = await Employee.findByPk(request.employee_id, { transaction });
+      if (employee) {
+        await employee.update({ is_active: false }, { transaction });
+
+        if (employee.user_id) {
+          await User.update(
+            { is_active: false, updated_at: new Date() },
+            { where: { id: employee.user_id }, transaction }
+          );
+        } else if (employee.email) {
+          await User.update(
+            { is_active: false, updated_at: new Date() },
+            { where: { email: String(employee.email).trim().toLowerCase(), role: 'employee' }, transaction }
+          );
+        }
+      }
+    }
 
     await transaction.commit();
 

@@ -211,6 +211,36 @@ async function hasEmployeeProfile(user) {
   return Boolean(employee);
 }
 
+async function getEmployeeProfile(user) {
+  if (!user || user.role !== 'employee') {
+    return null;
+  }
+
+  const userId = Number(user.id);
+  if (Number.isInteger(userId) && userId > 0) {
+    const byUserId = await Employee.findOne({
+      where: {
+        user_id: userId
+      }
+    });
+
+    if (byUserId) {
+      return byUserId;
+    }
+  }
+
+  const normalizedEmail = String(user.email || '').trim().toLowerCase();
+  if (!normalizedEmail) {
+    return null;
+  }
+
+  return Employee.findOne({
+    where: {
+      email: normalizedEmail
+    }
+  });
+}
+
 async function login(req, res) {
   try {
     const { email, password } = req.body;
@@ -224,8 +254,27 @@ async function login(req, res) {
     const normalizedEmail = String(email).trim().toLowerCase();
     const user = await User.findOne({ where: { email: normalizedEmail } });
 
-    if (!user || !user.is_active) {
+    if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    if (!user.is_active) {
+      if (user.role === 'employee') {
+        return res.status(403).json({
+          message: 'Account deactivated. You are no longer an active employee.'
+        });
+      }
+      return res.status(403).json({ message: 'Account deactivated. Please contact administrator.' });
+    }
+
+    if (user.role === 'employee') {
+      const employeeProfile = await getEmployeeProfile(user);
+      if (employeeProfile && !employeeProfile.is_active) {
+        await user.update({ is_active: false, updated_at: new Date() });
+        return res.status(403).json({
+          message: 'Account deactivated. You are no longer an active employee.'
+        });
+      }
     }
 
     if (!user.password_hash) {

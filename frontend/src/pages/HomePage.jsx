@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import MouseGrains from '../shared/components/MouseGrains';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
@@ -141,8 +140,6 @@ const HomePage = () => {
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 px-6">
-        {/* Mouse-following grains/confetti effect — scoped to hero */}
-        <MouseGrains isDarkMode={isDarkMode} />
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-16">
             <motion.h1

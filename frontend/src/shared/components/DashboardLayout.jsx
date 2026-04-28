@@ -5,10 +5,10 @@ import {
   LayoutDashboard,
   Building2,
   Users,
-  UserPlus,
   Network,
   Wallet,
   Receipt,
+  FileSpreadsheet,
   PlayCircle,
   Briefcase,
   ClipboardCheck,
@@ -16,6 +16,7 @@ import {
   CalendarCheck,
   ClipboardList,
   Clock,
+  BarChart3,
   LogOut,
   Menu,
   X,
@@ -36,7 +37,6 @@ const hrSidebarGroups = [
     label: 'Employees',
     items: [
       { path: '/dashboard/hr/employees', icon: Users, label: 'Employees', matchPaths: ['/dashboard/hr/employees', '/dashboard/hr/employee/'] },
-      { path: '/dashboard/hr/employee/new', icon: UserPlus, label: 'Add Employee', exact: true },
       { path: '/dashboard/hr/departments-designations', icon: Building2, label: 'Departments' },
       { path: '/dashboard/hr/designations', icon: Briefcase, label: 'Designations' },
       { path: '/dashboard/hr/organization-chart', icon: Network, label: 'Org Chart' },
@@ -47,6 +47,7 @@ const hrSidebarGroups = [
     items: [
       { path: '/dashboard/hr/attendance', icon: CalendarCheck, label: 'Attendance', matchPaths: ['/dashboard/hr/attendance'] },
       { path: '/dashboard/hr/shifts', icon: Clock, label: 'Shifts' },
+      { path: '/dashboard/hr/attendance-reports', icon: BarChart3, label: 'Attendance Report', exact: true },
     ],
   },
   {
@@ -63,6 +64,7 @@ const hrSidebarGroups = [
       { path: '/dashboard/hr/payroll', icon: Wallet, label: 'Payroll', exact: true },
       { path: '/dashboard/hr/payroll/process', icon: PlayCircle, label: 'Processing', exact: true },
       { path: '/dashboard/hr/payroll/settings', icon: Receipt, label: 'Pay Settings', exact: true },
+      { path: '/dashboard/hr/payroll-reports', icon: FileSpreadsheet, label: 'Payroll Report', exact: true },
     ],
   },
   {

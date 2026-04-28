@@ -6,10 +6,11 @@ const { Shift } = require('../models/Shift');
 
 const ALLOWED_STATUSES = new Set(['present', 'late', 'absent', 'half_day', 'on_leave']);
 
-function resolveDate(rawDate) {
+function resolveDate(rawDate, options = {}) {
+  const { fallbackToday = true } = options;
   const candidate = String(rawDate || '').trim();
   if (!candidate) {
-    return new Date().toISOString().slice(0, 10);
+    return fallbackToday ? new Date().toISOString().slice(0, 10) : null;
   }
 
   const parsed = new Date(candidate);
@@ -459,20 +460,12 @@ exports.getEmployeeAttendanceDetails = async (req, res) => {
 exports.getAttendanceReport = async (req, res) => {
   try {
     const reportType = String(req.query?.type || 'monthly_summary').trim().toLowerCase();
-    const month = resolveMonth(req.query?.month);
-
-    if (!month) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid month format. Use YYYY-MM.'
-      });
-    }
-
     const supportedTypes = new Set([
       'monthly_summary',
       'late_arrivals',
       'absentee_report',
-      'overtime_report'
+      'overtime_report',
+      'employee_detailed'
     ]);
 
     if (!supportedTypes.has(reportType)) {
@@ -482,7 +475,50 @@ exports.getAttendanceReport = async (req, res) => {
       });
     }
 
-    const { startDate, endDate } = toMonthBoundary(month);
+    const rawStartDate = req.query?.startDate ?? req.query?.start_date;
+    const rawEndDate = req.query?.endDate ?? req.query?.end_date;
+    const hasExplicitRange = rawStartDate !== undefined || rawEndDate !== undefined;
+
+    let month = null;
+    let startDate;
+    let endDate;
+
+    if (hasExplicitRange) {
+      startDate = resolveDate(rawStartDate, { fallbackToday: false });
+      endDate = resolveDate(rawEndDate, { fallbackToday: false });
+
+      if (!startDate || !endDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid date range format. Use YYYY-MM-DD for startDate and endDate.'
+        });
+      }
+
+      if (startDate > endDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'startDate cannot be after endDate.'
+        });
+      }
+    } else {
+      month = resolveMonth(req.query?.month);
+      if (!month) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid month format. Use YYYY-MM.'
+        });
+      }
+
+      ({ startDate, endDate } = toMonthBoundary(month));
+    }
+
+    const reportContext = {
+      reportType,
+      month,
+      startDate,
+      endDate
+    };
+
     const rows = await Attendance.findAll({
       where: {
         attendance_date: {
@@ -527,8 +563,7 @@ exports.getAttendanceReport = async (req, res) => {
       return res.status(200).json({
         success: true,
         data: {
-          reportType,
-          month,
+          ...reportContext,
           title: 'Monthly Summary',
           note: null,
           columns: [
@@ -568,8 +603,7 @@ exports.getAttendanceReport = async (req, res) => {
       return res.status(200).json({
         success: true,
         data: {
-          reportType,
-          month,
+          ...reportContext,
           title: 'Late Arrivals',
           note: null,
           columns: [
@@ -587,8 +621,7 @@ exports.getAttendanceReport = async (req, res) => {
       return res.status(200).json({
         success: true,
         data: {
-          reportType,
-          month,
+          ...reportContext,
           title: 'Absentee Report',
           note: null,
           columns: [
@@ -598,6 +631,50 @@ exports.getAttendanceReport = async (req, res) => {
             { key: 'count', label: 'Absent Days' }
           ],
           rows: buildEmployeeCountRows('absent')
+        }
+      });
+    }
+
+    if (reportType === 'employee_detailed') {
+      const detailedRows = rows
+        .map((row) => ({
+          employeeName: `${row.employee?.first_name || ''} ${row.employee?.last_name || ''}`.trim() || '-',
+          department: row.employee?.department || '-',
+          designation: row.employee?.designation || '-',
+          attendanceDate: String(row.attendance_date || '-'),
+          status: String(row.status || '-').replace('_', ' ').replace(/\b\w/g, (ch) => ch.toUpperCase()),
+          checkInTime: formatTimeLabel(row.check_in_time),
+          checkOutTime: formatTimeLabel(row.check_out_time),
+          workedHours: formatWorkedHours(row.worked_minutes),
+          overtimeHours: formatWorkedHours(row.overtime_minutes),
+          remarks: row.remarks || '-'
+        }))
+        .sort((a, b) => {
+          if (a.attendanceDate === b.attendanceDate) {
+            return a.employeeName.localeCompare(b.employeeName);
+          }
+          return a.attendanceDate.localeCompare(b.attendanceDate);
+        });
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          ...reportContext,
+          title: 'Employee Detailed Attendance',
+          note: 'Detailed per-employee attendance entries for the selected date range.',
+          columns: [
+            { key: 'attendanceDate', label: 'Date' },
+            { key: 'employeeName', label: 'Employee' },
+            { key: 'department', label: 'Department' },
+            { key: 'designation', label: 'Designation' },
+            { key: 'status', label: 'Status' },
+            { key: 'checkInTime', label: 'Check In' },
+            { key: 'checkOutTime', label: 'Check Out' },
+            { key: 'workedHours', label: 'Worked Hours' },
+            { key: 'overtimeHours', label: 'Overtime Hours' },
+            { key: 'remarks', label: 'Remarks' }
+          ],
+          rows: detailedRows
         }
       });
     }
@@ -632,8 +709,7 @@ exports.getAttendanceReport = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: {
-        reportType,
-        month,
+        ...reportContext,
         title: 'Overtime Report',
         note: null,
         columns: [
